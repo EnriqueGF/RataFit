@@ -1,8 +1,14 @@
 # RataFit
 
-PWA de registro de entrenamiento, pensada para una rutina **fullbody de 3 días**
-con **pecho y espalda como prioridades**. Funciona offline, se instala en el
-móvil y guarda todo en el propio dispositivo.
+PWA de registro de entrenamiento, pensada para una rutina **fullbody de 2 a 4
+días** con **pecho y espalda como prioridades**. Funciona offline, se instala en
+el móvil y guarda todo en el propio dispositivo.
+
+**▶ [enriquegf.github.io/RataFit](https://enriquegf.github.io/RataFit/)**
+
+Para instalarla en el móvil: abre ese enlace en Chrome o Safari y elige "Añadir
+a la pantalla de inicio". A partir de ahí funciona como una app nativa, también
+sin conexión.
 
 ## Arrancar
 
@@ -14,9 +20,6 @@ npm run preview    # servir el build
 npm test           # 293 tests
 npm run coverage   # informe de cobertura
 ```
-
-Para instalarla en el móvil: sirve `dist/` por HTTPS (o `localhost`), ábrela en
-Chrome/Safari y elige "Añadir a la pantalla de inicio".
 
 ## Cuestionario inicial
 
