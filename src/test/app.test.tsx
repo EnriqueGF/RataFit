@@ -40,6 +40,17 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+/**
+ * Selecciona un día concreto antes de empezar. Sin esto, el día propuesto
+ * depende del día real de la semana y el test fallaría un miércoles pero no
+ * un domingo.
+ */
+async function pickDay(user: ReturnType<typeof userEvent.setup>, label: string) {
+  const selector = screen.getByRole('group', { name: 'Elegir día' });
+  await user.click(within(selector).getByRole('button', { name: new RegExp(label, 'i') }));
+}
+
+
 describe('estructura general', () => {
   it('muestra la marca y las cinco pestañas', () => {
     renderApp();
@@ -73,16 +84,21 @@ describe('pantalla HOY', () => {
     const selector = screen.getByRole('group', { name: 'Elegir día' });
     expect(within(selector).getAllByRole('button')).toHaveLength(3);
 
-    // Arranca en el día sugerido y el título refleja cuál es.
-    expect(screen.getByRole('heading', { name: /DÍA A/ })).toBeInTheDocument();
+    // El día de partida lo decide el calendario, así que se comprueba que hay
+    // uno cualquiera y que al elegir otro el título lo sigue.
+    expect(screen.getByRole('heading', { name: /DÍA [ABC]/ })).toBeInTheDocument();
     expect(screen.getByText(/\d+ ejercicios · \d+ series · ~\d+ min/)).toBeInTheDocument();
 
     await user.click(within(selector).getByRole('button', { name: /Día b/i }));
     expect(screen.getByRole('heading', { name: /DÍA B/ })).toBeInTheDocument();
+
+    await user.click(within(selector).getByRole('button', { name: /Día c/i }));
+    expect(screen.getByRole('heading', { name: /DÍA C/ })).toBeInTheDocument();
   });
 
-  it('enseña los ejercicios del día antes de empezar', () => {
-    renderApp();
+  it('enseña los ejercicios del día antes de empezar', async () => {
+    const { user } = renderApp();
+    await pickDay(user, 'Día a');
     expect(screen.getByText('Press banca con barra')).toBeInTheDocument();
     // Con sus series y RIR, como en la ficha previa a la sesión.
     expect(screen.getAllByText(/\d+×\d+–\d+ · RIR \d/).length).toBeGreaterThan(3);
@@ -116,6 +132,7 @@ describe('pantalla HOY', () => {
 
   it('empieza el entreno y salta a la pestaña ENTRENO', async () => {
     const { user } = renderApp();
+    await pickDay(user, 'Día a');
     await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     expect(screen.getByRole('button', { name: 'Ir a Entreno' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText(/DÍA A.*EN MARCHA/)).toBeInTheDocument();
@@ -135,18 +152,22 @@ describe('estructura de la pantalla HOY', () => {
   it('marca el día activo en el selector', async () => {
     const { user } = renderApp();
     const selector = screen.getByRole('group', { name: 'Elegir día' });
-    const [a, b] = within(selector).getAllByRole('button');
+    const buttons = within(selector).getAllByRole('button');
 
-    expect(a).toHaveAttribute('aria-pressed', 'true');
-    expect(b).toHaveAttribute('aria-pressed', 'false');
+    // Sea cual sea el día que proponga el calendario, hay exactamente uno activo.
+    const pressed = () => buttons.filter((b) => b.getAttribute('aria-pressed') === 'true');
+    expect(pressed()).toHaveLength(1);
 
-    await user.click(b);
-    expect(b).toHaveAttribute('aria-pressed', 'true');
-    expect(a).toHaveAttribute('aria-pressed', 'false');
+    // Y al elegir otro, la marca se mueve a ese.
+    const other = buttons.find((b) => b.getAttribute('aria-pressed') === 'false')!;
+    await user.click(other);
+    expect(other).toHaveAttribute('aria-pressed', 'true');
+    expect(pressed()).toHaveLength(1);
   });
 
-  it('destaca los grupos prioritarios en la lista de ejercicios', () => {
-    renderApp();
+  it('destaca los grupos prioritarios en la lista de ejercicios', async () => {
+    const { user } = renderApp();
+    await pickDay(user, 'Día a');
     // El press de banca es pecho, que viene priorizado por defecto.
     const card = screen.getByText('Press banca con barra').closest('.exercise');
     expect(card).toHaveClass('exercise--priority');
@@ -632,6 +653,7 @@ describe('ajustes', () => {
 describe('persistencia entre recargas', () => {
   it('recupera la sesión en curso al volver a montar la app', async () => {
     const { user, unmount } = renderApp();
+    await pickDay(user, 'Día a');
     await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     expect(screen.getByText(/DÍA A.*EN MARCHA/)).toBeInTheDocument();
     unmount();

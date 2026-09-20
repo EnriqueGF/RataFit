@@ -22,6 +22,17 @@ const goTo = async (user: ReturnType<typeof userEvent.setup>, label: string) =>
 
 beforeEach(() => localStorage.clear());
 
+/**
+ * Selecciona un día concreto antes de empezar. Sin esto, el día propuesto
+ * depende del día real de la semana y el test fallaría un miércoles pero no
+ * un domingo.
+ */
+async function pickDay(user: ReturnType<typeof userEvent.setup>, label: string) {
+  const selector = screen.getByRole('group', { name: 'Elegir día' });
+  await user.click(within(selector).getByRole('button', { name: new RegExp(label, 'i') }));
+}
+
+
 describe('cronómetro de descanso en la sesión', () => {
   it('arranca solo al registrar una serie efectiva y se puede alargar o cerrar', async () => {
     const user = userEvent.setup();
@@ -73,6 +84,7 @@ describe('flujo completo de un entrenamiento', () => {
     render(<App initialState={configured()} />);
 
     // 1ª sesión: completar el tope del rango en el press banca.
+    await pickDay(user, 'Día a');
     await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     await user.click(screen.getByRole('button', { name: /Press banca con barra/ }));
 
@@ -89,6 +101,7 @@ describe('flujo completo de un entrenamiento', () => {
 
     // 2ª sesión del mismo día: la app propone más peso.
     await goTo(user, 'HOY');
+    await pickDay(user, 'Día a');
     await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     await user.click(screen.getByRole('button', { name: /Press banca con barra/ }));
 

@@ -194,7 +194,8 @@ describe('cuestionario inicial', () => {
 
     await user.click(screen.getByRole('button', { name: /Crear mi rutina/ }));
     expect(screen.getByRole('navigation', { name: 'Secciones' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /DÍA A/ })).toBeInTheDocument();
+    // Cuál de los tres días se propone depende del calendario.
+    expect(screen.getByRole('heading', { name: /DÍA [ABC]/ })).toBeInTheDocument();
   });
 
   it('la rutina creada se puede entrenar directamente', async () => {
@@ -203,6 +204,8 @@ describe('cuestionario inicial', () => {
     await goToStep(user, 4);
     await user.click(screen.getByRole('button', { name: /Crear mi rutina/ }));
 
+    const selector = screen.getByRole('group', { name: 'Elegir día' });
+    await user.click(within(selector).getByRole('button', { name: /Día a/i }));
     await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     expect(screen.getByText(/DÍA A.*EN MARCHA/)).toBeInTheDocument();
     // Y los ejercicios generados están ahí para registrar series.
