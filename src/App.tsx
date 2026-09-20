@@ -15,11 +15,11 @@ import { useAuth } from './state/useAuth';
 export type Tab = 'today' | 'workout' | 'routine' | 'progress' | 'settings';
 
 const TABS: Array<{ id: Tab; label: string; glyph: string }> = [
-  { id: 'today', label: 'HOY', glyph: '▶' },
-  { id: 'workout', label: 'ENTRENO', glyph: '◼' },
-  { id: 'routine', label: 'RUTINA', glyph: '≡' },
-  { id: 'progress', label: 'PROGRESO', glyph: '▲' },
-  { id: 'settings', label: 'AJUSTES', glyph: '⚙' },
+  { id: 'today', label: 'Hoy', glyph: '⊞' },
+  { id: 'workout', label: 'Entreno', glyph: '🏋' },
+  { id: 'routine', label: 'Rutina', glyph: '☰' },
+  { id: 'progress', label: 'Progreso', glyph: '📈' },
+  { id: 'settings', label: 'Ajustes', glyph: '⚙' },
 ];
 
 const PHASE_SHORT: Record<string, string> = {
@@ -63,10 +63,8 @@ function Shell() {
     return (
       <div className="app app--onboarding">
         <header className="topbar">
-          <h1 className="topbar__brand">
-            RATA//FIT<span className="caret" aria-hidden="true" />
-          </h1>
-          <div className="topbar__meta">CONFIGURACIÓN INICIAL</div>
+          <h1 className="topbar__brand">RataFit</h1>
+          <span className="badge badge--quiet">CONFIGURACIÓN INICIAL</span>
         </header>
         <main className="app__main">
           <OnboardingScreen
@@ -82,23 +80,23 @@ function Shell() {
   return (
     <div className={`app${resting ? ' app--resting' : ''}`}>
       <header className="topbar">
-        <h1 className="topbar__brand">
-          RATA//FIT<span className="caret" aria-hidden="true" />
-        </h1>
+        <h1 className="topbar__brand">RataFit</h1>
         <div className="topbar__meta">
-          SEM {state.mesocycle.week}/{state.mesocycle.lengthWeeks} ·{' '}
-          {PHASE_SHORT[phaseForWeek(state.mesocycle)]}
-          <br />
-          {state.active
-            ? `${sessionRunning ? 'EN MARCHA' : 'PAUSA'} ${formatDuration(elapsedMs(state.active, now))}`
-            : 'SIN SESIÓN'}
           {auth.account && (
-            <>
-              {' · '}
-              <span title={`Sesión de ${auth.account.username}`}>
-                {auth.status === 'offline' ? '☁✕' : auth.status === 'syncing' ? '☁↻' : '☁'}
-              </span>
-            </>
+            <span className="badge badge--quiet" title={`Sesión de ${auth.account.username}`}>
+              {auth.status === 'offline' ? '☁✕' : auth.status === 'syncing' ? '☁↻' : '☁'}{' '}
+              {auth.account.username}
+            </span>
+          )}
+          {state.active ? (
+            <span className="badge">
+              {sessionRunning ? '▶' : '⏸'} {formatDuration(elapsedMs(state.active, now))}
+            </span>
+          ) : (
+            <span className="badge badge--quiet">
+              SEM {state.mesocycle.week}/{state.mesocycle.lengthWeeks} ·{' '}
+              {PHASE_SHORT[phaseForWeek(state.mesocycle)]}
+            </span>
           )}
         </div>
       </header>
@@ -137,6 +135,9 @@ function Shell() {
             key={item.id}
             type="button"
             className="tabbar__item"
+            // Etiqueta explícita: el rótulo visible ("Entreno") aparece también
+            // en botones como "Empezar entreno" y las búsquedas se confundirían.
+            aria-label={`Ir a ${item.label}`}
             aria-current={tab === item.id ? 'page' : undefined}
             onClick={() => setTab(item.id)}
           >

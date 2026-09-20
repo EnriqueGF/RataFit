@@ -32,8 +32,9 @@ const logged = (o: Partial<LoggedSet> = {}): Omit<LoggedSet, 'id' | 'completedAt
   ...o,
 });
 
+/** Cambia de pestaña por su etiqueta accesible ("Ir a Entreno"). */
 const goTo = async (user: ReturnType<typeof userEvent.setup>, label: string) =>
-  user.click(screen.getByRole('button', { name: new RegExp(label) }));
+  user.click(screen.getByRole('button', { name: new RegExp(`^Ir a ${label}$`, 'i') }));
 
 beforeEach(() => {
   localStorage.clear();
@@ -42,54 +43,67 @@ beforeEach(() => {
 describe('estructura general', () => {
   it('muestra la marca y las cinco pestañas', () => {
     renderApp();
-    expect(screen.getByRole('heading', { name: /RATA\/\/FIT/ })).toBeInTheDocument();
-    for (const tab of ['HOY', 'ENTRENO', 'RUTINA', 'PROGRESO', 'AJUSTES']) {
-      expect(screen.getByRole('button', { name: new RegExp(tab) })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'RataFit' })).toBeInTheDocument();
+    for (const tab of ['Hoy', 'Entreno', 'Rutina', 'Progreso', 'Ajustes']) {
+      expect(screen.getByRole('button', { name: `Ir a ${tab}` })).toBeInTheDocument();
     }
   });
 
   it('arranca en HOY y permite navegar entre pestañas', async () => {
     const { user } = renderApp();
-    expect(screen.getByRole('button', { name: /HOY/ })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Ir a Hoy' })).toHaveAttribute('aria-current', 'page');
 
     await goTo(user, 'RUTINA');
-    expect(screen.getByRole('button', { name: /RUTINA/ })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Ir a Rutina' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByLabelText('Nombre')).toHaveValue('FULLBODY 3D · PECHO + ESPALDA');
 
     await goTo(user, 'AJUSTES');
     expect(screen.getByLabelText('Unidad de peso')).toBeInTheDocument();
   });
 
-  it('indica que no hay sesión activa en la cabecera', () => {
+  it('indica la semana del mesociclo cuando no hay sesión activa', () => {
     renderApp();
-    expect(screen.getByText(/SIN SESIÓN/)).toBeInTheDocument();
+    expect(screen.getByText(/SEM 1\/5/)).toBeInTheDocument();
   });
 });
 
 describe('pantalla HOY', () => {
-  it('lista los tres días con su día de la semana y duración estimada', () => {
-    renderApp();
+  it('muestra el día seleccionado y deja cambiar de día', async () => {
+    const { user } = renderApp();
+    const selector = screen.getByRole('group', { name: 'Elegir día' });
+    expect(within(selector).getAllByRole('button')).toHaveLength(3);
+
+    // Arranca en el día sugerido y el título refleja cuál es.
     expect(screen.getByRole('heading', { name: /DÍA A/ })).toBeInTheDocument();
+    expect(screen.getByText(/\d+ ejercicios · \d+ series · ~\d+ min/)).toBeInTheDocument();
+
+    await user.click(within(selector).getByRole('button', { name: /Día b/i }));
     expect(screen.getByRole('heading', { name: /DÍA B/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /DÍA C/ })).toBeInTheDocument();
-    expect(screen.getByText('Lunes')).toBeInTheDocument();
-    expect(screen.getAllByText(/\d+ ejercicios · ~\d+ min/)).toHaveLength(3);
+  });
+
+  it('enseña los ejercicios del día antes de empezar', () => {
+    renderApp();
+    expect(screen.getByText('Press banca con barra')).toBeInTheDocument();
+    // Con sus series y RIR, como en la ficha previa a la sesión.
+    expect(screen.getAllByText(/\d+×\d+–\d+ · RIR \d/).length).toBeGreaterThan(3);
   });
 
   it('muestra la fase del mesociclo y deja avanzar de semana', async () => {
     const { user } = renderApp();
-    expect(screen.getByText('ACUMULACIÓN')).toBeInTheDocument();
+    const meso = screen.getByRole('heading', { name: 'Mesociclo' }).closest('.panel') as HTMLElement;
+    expect(within(meso).getByText('ACUMULACIÓN')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Avanzar de semana/ }));
-    expect(screen.getByRole('heading', { name: /semana 2\/5/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/Semana 2\/5/).length).toBeGreaterThan(0);
   });
 
   it('avisa durante la semana de descarga', async () => {
     const { user } = renderApp(stateWith({ type: 'mesocycle/set', week: 5 }));
-    expect(screen.getByText('DESCARGA')).toBeInTheDocument();
+    const meso = screen.getByRole('heading', { name: 'Mesociclo' }).closest('.panel') as HTMLElement;
+    expect(within(meso).getByText('DESCARGA')).toBeInTheDocument();
     expect(screen.getByText(/Semana de descarga/)).toBeInTheDocument();
     // Al avanzar desde la descarga se reinicia el mesociclo.
     await user.click(screen.getByRole('button', { name: /Avanzar de semana/ }));
-    expect(screen.getByRole('heading', { name: /semana 1\/5/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/Semana 1\/5/).length).toBeGreaterThan(0);
   });
 
   it('muestra el volumen semanal planificado con pecho y espalda destacados', () => {
@@ -102,9 +116,44 @@ describe('pantalla HOY', () => {
 
   it('empieza el entreno y salta a la pestaña ENTRENO', async () => {
     const { user } = renderApp();
-    await user.click(screen.getAllByRole('button', { name: /Empezar entreno/ })[0]);
-    expect(screen.getByRole('button', { name: /ENTRENO/ })).toHaveAttribute('aria-current', 'page');
+    await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
+    expect(screen.getByRole('button', { name: 'Ir a Entreno' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText(/DÍA A.*EN MARCHA/)).toBeInTheDocument();
+  });
+});
+
+describe('estructura de la pantalla HOY', () => {
+  it('pone la acción principal en una barra fija, no una por día', () => {
+    renderApp();
+    const cta = screen.getByRole('button', { name: /Empezar entreno/ });
+    expect(cta).toHaveClass('btn--primary');
+    // Un único botón de arranque, dentro de la barra fija.
+    expect(screen.getAllByRole('button', { name: /Empezar entreno/ })).toHaveLength(1);
+    expect(cta.closest('.cta-bar')).not.toBeNull();
+  });
+
+  it('marca el día activo en el selector', async () => {
+    const { user } = renderApp();
+    const selector = screen.getByRole('group', { name: 'Elegir día' });
+    const [a, b] = within(selector).getAllByRole('button');
+
+    expect(a).toHaveAttribute('aria-pressed', 'true');
+    expect(b).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(b);
+    expect(b).toHaveAttribute('aria-pressed', 'true');
+    expect(a).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('destaca los grupos prioritarios en la lista de ejercicios', () => {
+    renderApp();
+    // El press de banca es pecho, que viene priorizado por defecto.
+    const card = screen.getByText('Press banca con barra').closest('.exercise');
+    expect(card).toHaveClass('exercise--priority');
+    // La sentadilla (cuádriceps) no lo está.
+    expect(screen.getByText('Sentadilla trasera').closest('.exercise')).not.toHaveClass(
+      'exercise--priority',
+    );
   });
 });
 
@@ -130,7 +179,7 @@ describe('sesión de entrenamiento', () => {
     await goTo(user, 'ENTRENO');
 
     await user.click(screen.getByRole('button', { name: /Pausar/ }));
-    expect(screen.getByText(/EN PAUSA/)).toBeInTheDocument();
+    expect(screen.getByText(/DÍA A.*EN PAUSA/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Reanudar/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Reanudar/ }));
@@ -583,7 +632,7 @@ describe('ajustes', () => {
 describe('persistencia entre recargas', () => {
   it('recupera la sesión en curso al volver a montar la app', async () => {
     const { user, unmount } = renderApp();
-    await user.click(screen.getAllByRole('button', { name: /Empezar entreno/ })[0]);
+    await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     expect(screen.getByText(/DÍA A.*EN MARCHA/)).toBeInTheDocument();
     unmount();
 
@@ -591,7 +640,7 @@ describe('persistencia entre recargas', () => {
     // en pausa, para no contar como entreno el rato que la app estuvo cerrada.
     const remounted = userEvent.setup();
     render(<App />);
-    expect(screen.getByText(/PAUSA/)).toBeInTheDocument();
+    expect(screen.getByText(/⏸/)).toBeInTheDocument();
     await goTo(remounted, 'ENTRENO');
     expect(screen.getByText(/DÍA A.*EN PAUSA/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Press banca con barra/ })).toBeInTheDocument();

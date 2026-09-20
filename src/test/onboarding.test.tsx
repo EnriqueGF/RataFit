@@ -40,7 +40,7 @@ describe('cuestionario inicial', () => {
 
     await user.click(screen.getByRole('button', { name: /Usar la rutina por defecto/ }));
     expect(screen.getByRole('navigation', { name: 'Secciones' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /RUTINA/ }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Rutina' }));
     expect(screen.getByLabelText('Nombre')).toHaveValue('FULLBODY 3D · PECHO + ESPALDA');
   });
 
@@ -172,7 +172,7 @@ describe('cuestionario inicial', () => {
 
     await goToStep(user, 2);
     await user.click(screen.getByRole('button', { name: /Crear mi rutina/ }));
-    await user.click(screen.getByRole('button', { name: /RUTINA/ }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Rutina' }));
     expect(screen.getByLabelText('Nombre')).toHaveValue('FULLBODY 3D · PECHO + CUÁDRICEPS');
   });
 
@@ -203,7 +203,7 @@ describe('cuestionario inicial', () => {
     await goToStep(user, 4);
     await user.click(screen.getByRole('button', { name: /Crear mi rutina/ }));
 
-    await user.click(screen.getAllByRole('button', { name: /Empezar entreno/ })[0]);
+    await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     expect(screen.getByText(/DÍA A.*EN MARCHA/)).toBeInTheDocument();
     // Y los ejercicios generados están ahí para registrar series.
     expect(screen.getAllByRole('button', { name: /series/ }).length).toBeGreaterThan(0);
@@ -225,7 +225,7 @@ describe('cuestionario inicial', () => {
     ].reduce(reducer, createInitialState(START));
 
     render(<App initialState={withHistory} />);
-    await user.click(screen.getByRole('button', { name: /AJUSTES/ }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Ajustes' }));
     await user.click(screen.getByRole('button', { name: /Rehacer el cuestionario/ }));
 
     expect(screen.getByText('CONFIGURACIÓN INICIAL')).toBeInTheDocument();
@@ -233,7 +233,7 @@ describe('cuestionario inicial', () => {
     await user.click(screen.getByRole('button', { name: /Crear mi rutina/ }));
 
     // El histórico y los récords siguen ahí.
-    await user.click(screen.getByRole('button', { name: /PROGRESO/ }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Progreso' }));
     expect(screen.getByRole('heading', { name: /Récords personales/ })).toBeInTheDocument();
     expect(screen.getByText(/kg 1RM/)).toBeInTheDocument();
   });
@@ -248,7 +248,7 @@ describe('cuestionario inicial', () => {
     await next(user);
     await user.click(screen.getByRole('button', { name: /Crear mi rutina/ }));
 
-    await user.click(screen.getByRole('button', { name: /AJUSTES/ }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Ajustes' }));
     await user.click(screen.getByRole('button', { name: /Rehacer el cuestionario/ }));
     await goToStep(user, 3);
     expect(screen.getByRole('button', { name: '4 días' })).toHaveAttribute('aria-pressed', 'true');

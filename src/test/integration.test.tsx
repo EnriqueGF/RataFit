@@ -16,8 +16,9 @@ function stateWith(...actions: Parameters<typeof reducer>[1][]): AppState {
   return actions.reduce(reducer, configured());
 }
 
+/** Cambia de pestaña por su etiqueta accesible ("Ir a Entreno"). */
 const goTo = async (user: ReturnType<typeof userEvent.setup>, label: string) =>
-  user.click(screen.getByRole('button', { name: new RegExp(label) }));
+  user.click(screen.getByRole('button', { name: new RegExp(`^Ir a ${label}$`, 'i') }));
 
 beforeEach(() => localStorage.clear());
 
@@ -72,7 +73,7 @@ describe('flujo completo de un entrenamiento', () => {
     render(<App initialState={configured()} />);
 
     // 1ª sesión: completar el tope del rango en el press banca.
-    await user.click(screen.getAllByRole('button', { name: /Empezar entreno/ })[0]);
+    await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     await user.click(screen.getByRole('button', { name: /Press banca con barra/ }));
 
     const weight = screen.getByLabelText('Peso de la siguiente serie');
@@ -88,7 +89,7 @@ describe('flujo completo de un entrenamiento', () => {
 
     // 2ª sesión del mismo día: la app propone más peso.
     await goTo(user, 'HOY');
-    await user.click(screen.getAllByRole('button', { name: /Empezar entreno/ })[0]);
+    await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     await user.click(screen.getByRole('button', { name: /Press banca con barra/ }));
 
     // Ahora que conoce el peso de trabajo, la app antepone las aproximaciones:
@@ -267,7 +268,7 @@ describe('accesibilidad básica', () => {
       .getAllByRole('button')
       .filter((b) => b.getAttribute('aria-current') === 'page');
     expect(current).toHaveLength(1);
-    expect(current[0]).toHaveTextContent('PROGRESO');
+    expect(current[0]).toHaveTextContent(/Progreso/i);
   });
 });
 

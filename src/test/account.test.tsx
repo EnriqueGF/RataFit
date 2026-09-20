@@ -119,7 +119,7 @@ afterEach(() => {
 });
 
 const goToSettings = async (user: ReturnType<typeof userEvent.setup>) =>
-  user.click(screen.getByRole('button', { name: /AJUSTES/ }));
+  user.click(screen.getByRole('button', { name: 'Ir a Ajustes' }));
 
 async function fillAccount(user: ReturnType<typeof userEvent.setup>, name: string, pass: string) {
   await user.type(screen.getByLabelText('Usuario'), name);
@@ -229,7 +229,7 @@ describe('entrar en una cuenta', () => {
     await user.click(screen.getByRole('button', { name: /Entrar/ }));
 
     await waitFor(() => expect(screen.getByText('enrique')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /RUTINA/ }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Rutina' }));
     expect(screen.getByLabelText('Nombre')).toHaveValue('RUTINA DEL SERVIDOR');
   });
 
@@ -332,7 +332,7 @@ describe('sesión iniciada', () => {
     await user.click(screen.getByRole('button', { name: /Sí, borrar la cuenta/ }));
 
     await waitFor(() => expect(screen.getByLabelText('Usuario')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /PROGRESO/ }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Progreso' }));
     expect(screen.getByRole('heading', { name: /Récords personales/ })).toBeInTheDocument();
   });
 
@@ -362,7 +362,7 @@ describe('conflictos entre dispositivos', () => {
     await user.click(screen.getByRole('button', { name: /Sincronizar ahora/ }));
 
     expect(await screen.findByText(/cambios más recientes de otro dispositivo/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /RUTINA/ }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Rutina' }));
     expect(screen.getByLabelText('Nombre')).toHaveValue('DESDE EL MÓVIL');
   });
 });

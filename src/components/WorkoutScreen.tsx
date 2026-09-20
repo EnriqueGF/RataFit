@@ -28,7 +28,7 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
 
   if (!session) {
     return (
-      <Empty glyph="▓">
+      <Empty glyph="🏋">
         No hay ningún entrenamiento en curso.
         <br />
         Ve a <strong>HOY</strong> y arranca una sesión.
@@ -49,7 +49,7 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
           <p className="timer__label">
             {session.dayName} · {running ? 'EN MARCHA' : 'EN PAUSA'}
           </p>
-          <div className="btn-row" style={{ justifyContent: 'center', marginTop: 12 }}>
+          <div className="btn-row" style={{ justifyContent: 'center', marginTop: 14 }}>
             {running ? (
               <button type="button" className="btn btn--amber" onClick={() => dispatch({ type: 'session/pause' })}>
                 ⏸ Pausar
@@ -159,7 +159,9 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
                   {sessionExercise.supersetGroup ? ' · SUPERSERIE' : ''}
                 </span>
               </span>
-              <span aria-hidden="true" style={{ color: 'var(--fg-dim)' }}>{open ? '▾' : '▸'}</span>
+              <span className={`exercise__chevron${open ? ' exercise__chevron--open' : ''}`} aria-hidden="true">
+                ⌄
+              </span>
             </button>
 
             {open && (

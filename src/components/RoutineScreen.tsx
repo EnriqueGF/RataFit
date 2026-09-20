@@ -178,7 +178,9 @@ export function RoutineScreen() {
                         aria-label={`Editar ${exercise.name}`}
                         onClick={() => setExpanded(open ? null : key)}
                       >
-                        {open ? '▾' : '⚙'}
+                        <span className={`exercise__chevron${open ? ' exercise__chevron--open' : ''}`}>
+                          ⌄
+                        </span>
                       </button>
                     </div>
 

@@ -43,7 +43,7 @@ export function ProgressScreen() {
 
   if (history.length === 0) {
     return (
-      <Empty glyph="▁▂▃">
+      <Empty glyph="📈">
         Todavía no hay entrenamientos registrados.
         <br />
         Termina tu primera sesión y aquí aparecerán tus marcas y tu volumen.
@@ -158,7 +158,9 @@ export function ProgressScreen() {
                       {Math.round(sessionTonnage(session)).toLocaleString('es-ES')} kg
                     </span>
                   </span>
-                  <span aria-hidden="true" style={{ color: 'var(--fg-dim)' }}>{open ? '▾' : '▸'}</span>
+                  <span className={`exercise__chevron${open ? ' exercise__chevron--open' : ''}`} aria-hidden="true">
+                    ⌄
+                  </span>
                 </button>
 
                 {open && (

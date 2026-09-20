@@ -17,7 +17,7 @@ npm install
 npm run dev        # desarrollo
 npm run build      # producción (dist/)
 npm run preview    # servir el build
-npm test           # 311 tests de la PWA
+npm test           # 315 tests de la PWA
 npm --prefix server test   # 27 tests del servidor
 npm run coverage   # informe de cobertura
 ```

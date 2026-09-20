@@ -129,7 +129,7 @@ export function ExercisePicker({
       <div className="divider" />
 
       {results.length === 0 ? (
-        <Empty glyph="∅">Ningún ejercicio coincide con el filtro.</Empty>
+        <Empty glyph="○">Ningún ejercicio coincide con el filtro.</Empty>
       ) : (
         <ul className="list-reset">
           {results.map((exercise) => {
