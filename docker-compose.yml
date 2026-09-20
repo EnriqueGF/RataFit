@@ -1,0 +1,50 @@
+services:
+  api:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      # Obligatorio: sin secreto el servidor no arranca. Genéralo con
+      #   openssl rand -base64 48
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET, copia .env.example a .env}
+      DB_FILE: /data/ratafit.db
+      PORT: 8080
+    volumes:
+      # La base de datos vive aquí: es lo único que hay que respaldar.
+      - ratafit-data:/data
+    expose:
+      - '8080'
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        # La PWA necesita saber a qué API llamar en tiempo de compilación.
+        # Vacío = misma máquina que sirve la web (lo habitual con Caddy).
+        VITE_API_URL: ${VITE_API_URL-}
+    restart: unless-stopped
+    expose:
+      - '80'
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      # Con un dominio real, Caddy pide el certificado HTTPS solo. Mientras
+      # esté a :80 sirve por HTTP, suficiente para probar en red local.
+      RATAFIT_DOMAIN: ${RATAFIT_DOMAIN:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+      - web
+
+volumes:
+  ratafit-data:
+  caddy-data:
+  caddy-config:

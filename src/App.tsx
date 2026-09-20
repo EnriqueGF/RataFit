@@ -10,6 +10,7 @@ import { OnboardingScreen } from './components/OnboardingScreen';
 import { formatSeconds, useRestTimer } from './hooks/useRestTimer';
 import { elapsedMs, formatDuration, phaseForWeek } from './domain/training';
 import { useTicker } from './hooks/useTicker';
+import { useAuth } from './state/useAuth';
 
 export type Tab = 'today' | 'workout' | 'routine' | 'progress' | 'settings';
 
@@ -31,6 +32,10 @@ const PHASE_SHORT: Record<string, string> = {
 function Shell() {
   const { state, dispatch } = useApp();
   const [tab, setTab] = useState<Tab>('today');
+  const auth = useAuth({
+    state,
+    onReplaceState: (next) => dispatch({ type: 'state/replace', state: next }),
+  });
   const rest = useRestTimer({
     sound: state.settings.soundEnabled,
     vibration: state.settings.vibrationEnabled,
@@ -87,6 +92,14 @@ function Shell() {
           {state.active
             ? `${sessionRunning ? 'EN MARCHA' : 'PAUSA'} ${formatDuration(elapsedMs(state.active, now))}`
             : 'SIN SESIÓN'}
+          {auth.account && (
+            <>
+              {' · '}
+              <span title={`Sesión de ${auth.account.username}`}>
+                {auth.status === 'offline' ? '☁✕' : auth.status === 'syncing' ? '☁↻' : '☁'}
+              </span>
+            </>
+          )}
         </div>
       </header>
 
@@ -95,7 +108,7 @@ function Shell() {
         {tab === 'workout' && <WorkoutScreen rest={rest} />}
         {tab === 'routine' && <RoutineScreen />}
         {tab === 'progress' && <ProgressScreen />}
-        {tab === 'settings' && <SettingsScreen />}
+        {tab === 'settings' && <SettingsScreen auth={auth} />}
       </main>
 
       {resting && (

@@ -28,6 +28,13 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+      # El servidor tiene su propia suite; no se despliega aquí (va por Docker),
+      # pero un fallo suyo debe romper la build igualmente.
+      - run: npm ci
+        working-directory: server
+      - run: npm test
+        working-directory: server
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

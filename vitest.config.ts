@@ -7,6 +7,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // El backend tiene su propia suite (server/) con entorno node; aquí solo
+    // corren los tests de la PWA, que necesitan jsdom.
+    exclude: ['**/node_modules/**', 'server/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

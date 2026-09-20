@@ -2,9 +2,11 @@ import { useRef, useState } from 'react';
 import { useApp } from '../state/AppContext';
 import { createInitialState, deserialize, serialize } from '../state/store';
 import { Field, Panel } from './ui';
+import { AccountPanel } from './AccountPanel';
+import type { AuthApi } from '../state/useAuth';
 import { NumberInput } from './NumberInput';
 
-export function SettingsScreen() {
+export function SettingsScreen({ auth }: { auth: AuthApi }) {
   const { state, dispatch } = useApp();
   const { settings, mesocycle } = state;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -34,6 +36,8 @@ export function SettingsScreen() {
 
   return (
     <>
+      <AccountPanel auth={auth} sessionCount={state.history.length} />
+
       <Panel title="Entreno">
         <Field label="Unidad de peso" htmlFor="unit">
           <select

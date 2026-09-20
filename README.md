@@ -17,8 +17,55 @@ npm install
 npm run dev        # desarrollo
 npm run build      # producción (dist/)
 npm run preview    # servir el build
-npm test           # 293 tests
+npm test           # 311 tests de la PWA
+npm --prefix server test   # 27 tests del servidor
 npm run coverage   # informe de cobertura
+```
+
+## Cuenta y sincronización
+
+Por defecto **no hace falta cuenta**: los entrenamientos se guardan en el propio
+dispositivo y la app funciona sin conexión. Si quieres tenerlos en el móvil y en
+el ordenador a la vez, en **AJUSTES → Mi cuenta** puedes crear una con usuario y
+contraseña. Al registrarte, **lo que ya tengas guardado en ese dispositivo se
+sube automáticamente** a la cuenta nueva.
+
+Cómo funciona la sincronización:
+
+- Los datos siguen viviendo en el dispositivo; el servidor guarda una copia. Si
+  te quedas sin cobertura en el gimnasio, sigues registrando series y se suben
+  al recuperar la conexión.
+- La subida es automática y agrupada (2,5 s tras el último cambio), para no
+  llamar al servidor en cada serie.
+- Si dos dispositivos tocan los mismos datos, **gana el que guardó más
+  recientemente** y el otro se actualiza, en vez de perder entrenamientos.
+- Al **entrar** en una cuenta existente, sus datos sustituyen a los locales. La
+  app te avisa antes.
+
+Levantar tu propio servidor:
+
+```bash
+cp .env.example .env
+# Genera un secreto propio y pégalo en JWT_SECRET:
+openssl rand -base64 48
+docker compose up -d
+```
+
+Queda en `http://localhost`. Con un dominio, pon `RATAFIT_DOMAIN=ratafit.tudominio.com`
+en el `.env` y Caddy consigue el certificado **HTTPS automáticamente**; sin él, la
+contraseña viajaría sin cifrar, así que para uso fuera de tu red conviene tener
+dominio.
+
+| Servicio | Qué hace |
+|---|---|
+| `api` | Node + SQLite. Cuentas y copia del estado. Datos en el volumen `ratafit-data` |
+| `web` | La PWA compilada, servida por nginx |
+| `caddy` | Entrada única: sirve la web y redirige `/api` a la API, con HTTPS |
+
+La copia de seguridad del servidor es un solo fichero:
+
+```bash
+docker compose cp api:/data/ratafit.db ./copia-ratafit.db
 ```
 
 ## Cuestionario inicial
@@ -72,7 +119,8 @@ con pecho (21 series) y espalda (21,5) en la parte alta.
 ## Datos
 
 Todo vive en `localStorage` (clave `iron-terminal:v1`) y se guarda tras cada
-cambio, así que una sesión a medias sobrevive a que el móvil cierre la app.
+cambio, así que una sesión a medias sobrevive a que el móvil cierre la app. Con
+una cuenta creada, además se copia al servidor.
 
 Cada ejercicio muestra dos fotogramas (inicio y final del recorrido) que la app
 alterna para enseñar el movimiento. Vienen de
@@ -92,6 +140,9 @@ src/
   state/       reducer, persistencia y contexto
   hooks/       cronómetro de sesión y de descanso
   components/  pantallas y componentes de UI
+  api/         cliente HTTP del servidor
+server/
+  src/         API de cuentas y sincronización (Express + SQLite)
 ```
 
 La lógica de entrenamiento está aislada de React en `src/domain`, lo que permite
