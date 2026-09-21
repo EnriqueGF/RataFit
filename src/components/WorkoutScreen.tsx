@@ -28,7 +28,7 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
 
   if (!session) {
     return (
-      <Empty glyph="🏋">
+      <Empty glyph="🏋" image="./mascot-celebrate.webp">
         No hay ningún entrenamiento en curso.
         <br />
         Ve a <strong>HOY</strong> y arranca una sesión.
@@ -85,8 +85,18 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
       </section>
 
       {confirmFinish && (
-        <div className="panel">
+        <div className="panel finish-panel">
           <div className="panel__body">
+            {totalSets > 0 && (
+              <div className="finish-panel__mascot">
+                <img
+                  src="./mascot-celebrate.webp"
+                  alt=""
+                  className="finish-panel__img"
+                  aria-hidden="true"
+                />
+              </div>
+            )}
             <p style={{ marginTop: 0 }}>
               {totalSets === 0
                 ? 'No has registrado ninguna serie. Si terminas ahora la sesión se descartará.'

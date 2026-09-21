@@ -63,7 +63,10 @@ function Shell() {
     return (
       <div className="app app--onboarding">
         <header className="topbar">
-          <h1 className="topbar__brand">RataFit</h1>
+          <h1 className="topbar__brand">
+            <img src="./favicon-32.png" alt="" className="topbar__logo" width="28" height="28" aria-hidden="true" />
+            <span>RataFit</span>
+          </h1>
           <span className="badge badge--quiet">CONFIGURACIÓN INICIAL</span>
         </header>
         <main className="app__main">
@@ -80,7 +83,10 @@ function Shell() {
   return (
     <div className={`app${resting ? ' app--resting' : ''}`}>
       <header className="topbar">
-        <h1 className="topbar__brand">RataFit</h1>
+        <h1 className="topbar__brand">
+          <img src="./favicon-32.png" alt="" className="topbar__logo" width="28" height="28" aria-hidden="true" />
+          <span>RataFit</span>
+        </h1>
         <div className="topbar__meta">
           {auth.account && (
             <span className="badge badge--quiet" title={`Sesión de ${auth.account.username}`}>

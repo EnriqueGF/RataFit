@@ -48,12 +48,24 @@ export function Stat({ value, label }: { value: ReactNode; label: string }) {
   );
 }
 
-export function Empty({ glyph, children }: { glyph: string; children: ReactNode }) {
+export function Empty({
+  glyph,
+  image,
+  children,
+}: {
+  glyph: string;
+  image?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="empty">
-      <div className="empty__glyph" aria-hidden="true">
-        {glyph}
-      </div>
+      {image ? (
+        <img src={image} alt="" className="empty__mascot" aria-hidden="true" />
+      ) : (
+        <div className="empty__glyph" aria-hidden="true">
+          {glyph}
+        </div>
+      )}
       {children}
     </div>
   );

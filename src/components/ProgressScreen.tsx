@@ -43,7 +43,7 @@ export function ProgressScreen() {
 
   if (history.length === 0) {
     return (
-      <Empty glyph="📈">
+      <Empty glyph="📈" image="./mascot-celebrate.webp">
         Todavía no hay entrenamientos registrados.
         <br />
         Termina tu primera sesión y aquí aparecerán tus marcas y tu volumen.

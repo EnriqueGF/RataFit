@@ -105,6 +105,18 @@ export function OnboardingScreen({ initialProfile, onFinish, onSkip }: Onboardin
         {/* ─────────────────────────── 1. Material ─────────────────────────── */}
         {step === 0 && (
           <>
+            <div className="mascot-banner">
+              <img
+                src="./mascot-celebrate.webp"
+                alt=""
+                className="mascot-banner__img"
+                aria-hidden="true"
+              />
+              <div className="mascot-banner__text">
+                <strong className="mascot-banner__title">¡Bienvenido a RataFit!</strong>
+                <span>Dile a la rata de gimnasio qué equipo tienes disponible para montar tu rutina a medida.</span>
+              </div>
+            </div>
             <p className="muted" style={{ marginTop: 0 }}>
               ¿Qué hay en tu gimnasio? Solo se propondrán ejercicios que puedas hacer de verdad.
             </p>

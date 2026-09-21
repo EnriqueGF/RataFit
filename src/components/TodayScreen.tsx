@@ -46,7 +46,7 @@ export function TodayScreen({ onStarted }: { onStarted: () => void }) {
 
   if (routine.days.length === 0) {
     return (
-      <Empty glyph="○">
+      <Empty glyph="○" image="./mascot-celebrate.webp">
         No hay días en la rutina.
         <br />
         Créalos en la pestaña <strong>RUTINA</strong>.

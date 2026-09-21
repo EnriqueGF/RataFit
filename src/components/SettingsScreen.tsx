@@ -238,6 +238,14 @@ export function SettingsScreen({ auth }: { auth: AuthApi }) {
           </li>
         </ul>
       </Panel>
+
+      <footer className="settings-footer">
+        <img src="./favicon-32.png" alt="" className="settings-footer__logo" width="32" height="32" aria-hidden="true" />
+        <div className="settings-footer__text">
+          <strong>RataFit</strong>
+          <span>Hecho para auténticas ratas de gimnasio.</span>
+        </div>
+      </footer>
     </>
   );
 }
