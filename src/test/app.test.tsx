@@ -469,6 +469,21 @@ describe('editor de rutina', () => {
     expect(screen.getByText('Sentadilla búlgara')).toBeInTheDocument();
   });
 
+  it('cambia un ejercicio del día desde el selector', async () => {
+    const { user } = renderApp();
+    await goTo(user, 'RUTINA');
+    await user.click(screen.getByRole('button', { name: 'Editar Press banca con barra' }));
+    await user.click(screen.getByRole('button', { name: '⇄ Cambiar' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Cambiar ejercicio' });
+    expect(within(dialog).getByRole('button', { name: /Press banca con barra/ })).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('Buscar ejercicio'), 'inclinado');
+    await user.click(within(dialog).getByRole('button', { name: /Press inclinado con barra/ }));
+
+    expect(screen.queryByText('Press banca con barra')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Press inclinado con barra')).toHaveLength(2);
+  });
+
   it('crea y elimina días', async () => {
     const { user } = renderApp();
     await goTo(user, 'RUTINA');

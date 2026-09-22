@@ -41,7 +41,11 @@ const ALL_MUSCLES: MuscleGroup[] = [
 export function RoutineScreen() {
   const { state, dispatch } = useApp();
   const { routine } = state;
-  const [picker, setPicker] = useState<string | null>(null);
+  const [picker, setPicker] = useState<
+    | { mode: 'add'; dayId: string }
+    | { mode: 'swap'; dayId: string; index: number; exerciseId: string }
+    | null
+  >(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -312,6 +316,20 @@ export function RoutineScreen() {
                           <button
                             type="button"
                             className="btn btn--sm"
+                            onClick={() =>
+                              setPicker({
+                                mode: 'swap',
+                                dayId: day.id,
+                                index,
+                                exerciseId: exercise.id,
+                              })
+                            }
+                          >
+                            ⇄ Cambiar
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--sm"
                             disabled={index === 0}
                             onClick={() =>
                               dispatch({ type: 'routine/moveExercise', dayId: day.id, from: index, to: index - 1 })
@@ -347,7 +365,11 @@ export function RoutineScreen() {
               })}
             </ul>
 
-            <button type="button" className="btn btn--block" onClick={() => setPicker(day.id)}>
+            <button
+              type="button"
+              className="btn btn--block"
+              onClick={() => setPicker({ mode: 'add', dayId: day.id })}
+            >
               + Añadir ejercicio
             </button>
           </div>
@@ -392,11 +414,23 @@ export function RoutineScreen() {
 
       {picker && (
         <ExercisePicker
+          title={picker.mode === 'swap' ? 'Cambiar ejercicio' : 'Añadir ejercicio'}
+          suggestFor={picker.mode === 'swap' ? picker.exerciseId : undefined}
           excludeIds={
-            routine.days.find((d) => d.id === picker)?.exercises.map((e) => e.exerciseId) ?? []
+            routine.days.find((d) => d.id === picker.dayId)?.exercises.map((e) => e.exerciseId) ?? []
           }
           onSelect={(exerciseId) => {
-            dispatch({ type: 'routine/addExercise', dayId: picker, exerciseId });
+            if (picker.mode === 'swap') {
+              dispatch({
+                type: 'routine/swapExercise',
+                dayId: picker.dayId,
+                index: picker.index,
+                exerciseId,
+              });
+              setExpanded(null);
+            } else {
+              dispatch({ type: 'routine/addExercise', dayId: picker.dayId, exerciseId });
+            }
             setPicker(null);
           }}
           onClose={() => setPicker(null)}
@@ -405,4 +439,3 @@ export function RoutineScreen() {
     </>
   );
 }
-

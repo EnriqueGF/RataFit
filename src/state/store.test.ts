@@ -311,6 +311,39 @@ describe('edición de la rutina', () => {
     expect(state.routine.days[0].exercises[0].exerciseId).toBe('barbell-row');
   });
 
+  it('cambia un ejercicio de la rutina conservando su configuración', () => {
+    const configured = reducer(initial(), {
+      type: 'routine/updateExercise',
+      dayId: 'day-1',
+      index: 0,
+      patch: { sets: 6, targetReps: [4, 6], targetRir: 1, technique: 'cluster' },
+    });
+    const state = reducer(configured, {
+      type: 'routine/swapExercise',
+      dayId: 'day-1',
+      index: 0,
+      exerciseId: 'incline-barbell-press',
+    });
+
+    expect(state.routine.days[0].exercises[0]).toEqual({
+      ...configured.routine.days[0].exercises[0],
+      exerciseId: 'incline-barbell-press',
+    });
+  });
+
+  it('no cambia un ejercicio por otro duplicado, desconocido o en un índice inválido', () => {
+    const base = initial();
+    for (const action of [
+      { type: 'routine/swapExercise' as const, dayId: 'day-1', index: 0, exerciseId: 'barbell-row' },
+      { type: 'routine/swapExercise' as const, dayId: 'day-1', index: 0, exerciseId: 'xxx' },
+      { type: 'routine/swapExercise' as const, dayId: 'day-1', index: 99, exerciseId: 'hip-thrust' },
+    ]) {
+      expect(reducer(base, action).routine.days[0].exercises).toEqual(
+        base.routine.days[0].exercises,
+      );
+    }
+  });
+
   it('reordena ejercicios y protege los índices fuera de rango', () => {
     const base = initial();
     const moved = reducer(base, { type: 'routine/moveExercise', dayId: 'day-1', from: 0, to: 2 });

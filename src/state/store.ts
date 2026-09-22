@@ -82,6 +82,7 @@ export type Action =
   | { type: 'routine/renameDay'; dayId: string; name: string }
   | { type: 'routine/setWeekday'; dayId: string; weekday: Weekday | null }
   | { type: 'routine/addExercise'; dayId: string; exerciseId: string }
+  | { type: 'routine/swapExercise'; dayId: string; index: number; exerciseId: string }
   | { type: 'routine/removeExercise'; dayId: string; index: number }
   | { type: 'routine/updateExercise'; dayId: string; index: number; patch: Partial<RoutineExercise> }
   | { type: 'routine/moveExercise'; dayId: string; from: number; to: number }
@@ -244,6 +245,29 @@ export function reducer(state: AppState, action: Action): AppState {
           ? d
           : { ...d, exercises: [...d.exercises, defaultRoutineExercise(action.exerciseId)] },
       );
+    }
+
+    case 'routine/swapExercise': {
+      if (!EXERCISE_BY_ID[action.exerciseId]) return state;
+      return withDay(state, action.dayId, (d) => {
+        if (action.index < 0 || action.index >= d.exercises.length) return d;
+        if (
+          d.exercises.some(
+            (exercise, index) =>
+              index !== action.index && exercise.exerciseId === action.exerciseId,
+          )
+        ) {
+          return d;
+        }
+        return {
+          ...d,
+          exercises: d.exercises.map((exercise, index) =>
+            index === action.index
+              ? { ...exercise, exerciseId: action.exerciseId }
+              : exercise,
+          ),
+        };
+      });
     }
 
     case 'routine/removeExercise':
