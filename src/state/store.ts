@@ -13,6 +13,7 @@ import { EXERCISE_BY_ID } from '../data/exercises';
 import { buildPrescriptions } from '../domain/training';
 import { createDefaultRoutine, defaultRoutineExercise } from '../domain/routineBuilder';
 import { DEFAULT_PROFILE, buildRoutineFromProfile, type GymProfile } from '../domain/onboarding';
+import { isBodyMeasurement, normalizeMeasurements, type BodyMeasurement } from '../domain/bodyMeasurements';
 
 export interface Settings {
   /** Unidad de peso; la app guarda siempre kg y convierte al mostrar. */
@@ -27,6 +28,7 @@ export interface Settings {
 }
 
 export interface AppState {
+  bodyMeasurements: BodyMeasurement[];
   routine: Routine;
   /** Respuestas del cuestionario inicial; null si aún no se ha hecho. */
   profile: GymProfile | null;
@@ -55,6 +57,7 @@ export function createInitialState(now = Date.now()): AppState {
     profile: null,
     lastProfile: null,
     history: [],
+    bodyMeasurements: [],
     active: null,
     mesocycle: { startedAt: now, week: 1, lengthWeeks: 5 },
     settings: DEFAULT_SETTINGS,
@@ -62,6 +65,8 @@ export function createInitialState(now = Date.now()): AppState {
 }
 
 export type Action =
+  | { type: 'body/save'; measurement: BodyMeasurement }
+  | { type: 'body/delete'; date: string }
   // Sesión
   | { type: 'session/start'; dayId: string; now?: number; force?: boolean }
   | { type: 'session/pause'; now?: number }
@@ -100,6 +105,15 @@ export type Action =
 
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'body/save': {
+      if (!isBodyMeasurement(action.measurement)) return state;
+      const bodyMeasurements = normalizeMeasurements([...state.bodyMeasurements, action.measurement]);
+      return { ...state, bodyMeasurements, settings: { ...state.settings, bodyweight: bodyMeasurements.at(-1)!.weight } };
+    }
+    case 'body/delete': {
+      const bodyMeasurements = state.bodyMeasurements.filter(m => m.date !== action.date);
+      return { ...state, bodyMeasurements, settings: { ...state.settings, bodyweight: bodyMeasurements.at(-1)?.weight ?? null } };
+    }
     // ───────────────────────────── Sesión ─────────────────────────────────
     case 'session/start': {
       const day = state.routine.days.find((d) => d.id === action.dayId);
@@ -353,7 +367,10 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, settings: { ...state.settings, ...action.patch } };
 
     case 'state/replace':
-      return action.state;
+      // Las cuentas existentes pueden devolver un estado anterior a las mediciones.
+      return action.state.bodyMeasurements === undefined
+        ? { ...action.state, bodyMeasurements: [] }
+        : action.state;
 
     default:
       return state;
@@ -488,6 +505,7 @@ export function deserialize(raw: string | null, now = Date.now()): AppState {
     if (!isValidRoutine(routine)) return initial;
     return {
       routine,
+      bodyMeasurements: normalizeMeasurements(parsed.state.bodyMeasurements),
       profile: parsed.state.profile ?? null,
       lastProfile: parsed.state.lastProfile ?? parsed.state.profile ?? null,
       history: Array.isArray(history) ? history.filter(isValidSession) : [],

@@ -59,7 +59,7 @@ describe('uncoveredMuscles', () => {
 
 describe('buildRoutineFromProfile', () => {
   it('genera tantos días como se hayan pedido', () => {
-    for (const days of [2, 3, 4] as const) {
+    for (const days of [2, 3, 4, 5] as const) {
       const routine = buildRoutineFromProfile(profile({ daysPerWeek: days }), 0);
       expect(routine.days, `${days} días`).toHaveLength(days);
     }
@@ -68,6 +68,21 @@ describe('buildRoutineFromProfile', () => {
   it('asigna los días de la semana elegidos', () => {
     const routine = buildRoutineFromProfile(profile({ daysPerWeek: 3, weekdays: [2, 4, 6] }), 0);
     expect(routine.days.map((d) => d.weekday)).toEqual([2, 4, 6]);
+  });
+
+  it('genera cinco sesiones completas con volumen de pecho y espalda controlado', () => {
+    const routine = buildRoutineFromProfile(profile({ daysPerWeek: 5, weekdays: [1, 2, 3, 4, 5] }), 0);
+    expect(routine.days.map(d => d.weekday)).toEqual([1, 2, 3, 4, 5]);
+    for (const day of routine.days) {
+      expect(day.exercises.length).toBeGreaterThan(0);
+      expect(new Set(day.exercises.map(e => e.exerciseId)).size).toBe(day.exercises.length);
+      expect(EXERCISE_BY_ID[day.exercises[0].exerciseId].compound).toBe(true);
+    }
+    const volume = plannedWeeklyVolume(routine);
+    for (const muscle of ['chest', 'back'] as const) {
+      expect(volume[muscle]).toBeGreaterThanOrEqual(WEEKLY_VOLUME_TARGETS[muscle][0]);
+      expect(volume[muscle]).toBeLessThanOrEqual(WEEKLY_VOLUME_TARGETS[muscle][1]);
+    }
   });
 
   it('deja los días libres si no se eligió ninguno', () => {

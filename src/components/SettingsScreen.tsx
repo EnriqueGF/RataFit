@@ -87,6 +87,7 @@ export function SettingsScreen({ auth }: { auth: AuthApi }) {
         </div>
 
         <div className="section-label">Avisos</div>
+        <p className="muted">Registra tus mediciones de peso y grasa en PROGRESO para ver su evolución.</p>
         <div className="chip-row">
           <Toggle
             label="Sonido"

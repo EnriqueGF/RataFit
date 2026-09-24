@@ -1,6 +1,6 @@
 # RataFit
 
-PWA de registro de entrenamiento, pensada para una rutina **fullbody de 2 a 4
+PWA de registro de entrenamiento, pensada para una rutina **fullbody de 2 a 5
 días** con **pecho y espalda como prioridades**. Funciona offline, se instala en
 el móvil y guarda todo en el propio dispositivo.
 
@@ -75,7 +75,7 @@ La primera vez, la app pregunta antes de proponer nada:
 1. **Material** — qué hay en tu gimnasio (barra, mancuernas, máquinas, poleas, multipower, peso corporal). Solo se proponen ejercicios que puedas hacer, y avisa si algún grupo se queda sin cubrir.
 2. **Ejercicios** — ★ los que quieres sí o sí y ✕ los que no puedes o no quieres hacer (no hay máquina, te molesta, no te gusta). El resto lo elige la app.
 3. **Objetivo** — grupos prioritarios (pecho y espalda por defecto) y experiencia. Un principiante recibe series rectas y RIR conservador; un avanzado, más volumen y barra libre.
-4. **Calendario** — 2, 3 o 4 días, qué días de la semana (o ninguno, para entrenar cuando quieras) y cuánto dura la sesión.
+4. **Calendario** — 2, 3, 4 o 5 días, qué días de la semana (o ninguno, para entrenar cuando quieras) y cuánto dura la sesión.
 5. **Resumen** — la rutina generada, ejercicio a ejercicio, antes de aceptarla.
 
 Con eso se genera la rutina: cada día abre con un básico pesado, pecho y espalda salen en todas las sesiones, y las series se reparten para que el volumen **semanal** de cada grupo caiga dentro del rango recomendado sea cual sea el número de días.
@@ -89,7 +89,7 @@ Se puede rehacer cuando quieras desde **AJUSTES → Mi gimnasio** (el histórico
 | **HOY** | Fase del mesociclo, elección del día a entrenar y volumen semanal planificado |
 | **ENTRENO** | Cronómetro con play/pausa, registro de series, GIFs, descanso, cambio de ejercicios |
 | **RUTINA** | Edición completa: días, día de la semana, ejercicios, series, reps, RIR, técnica, descanso |
-| **PROGRESO** | Acumulado, volumen de 7 días, récords, aviso de estancamiento e historial |
+| **PROGRESO** | Peso y grasa opcional con gráficas, acumulado, volumen de 7 días, récords, aviso de estancamiento e historial |
 | **AJUSTES** | Unidades, avisos, mesociclo, rehacer el cuestionario, exportar/importar copia y borrado |
 
 ## La rutina por defecto
@@ -117,6 +117,14 @@ con pecho (21 series) y espalda (21,5) en la parte alta.
 - **Estancamiento**: tres sesiones seguidas sin mejorar el 1RM estimado disparan un aviso con opciones.
 
 ## Datos
+
+En **PROGRESO → Evolución corporal** puedes guardar tu peso por fecha y, si quieres,
+el porcentaje de grasa. Las gráficas muestran su evolución; el historial permite
+editar o eliminar mediciones. El peso respeta la unidad elegida en Ajustes y se
+guarda internamente en kg. Guardar una fecha existente actualiza esa medición.
+Las mediciones se incluyen en las copias de seguridad y en la sincronización.
+Las copias y cuentas anteriores siguen funcionando y conservan sus datos; el
+nuevo historial comienza vacío, sin inventar fechas para el peso de Ajustes.
 
 Todo vive en `localStorage` (clave `iron-terminal:v1`) y se guarda tras cada
 cambio, así que una sesión a medias sobrevive a que el móvil cierre la app. Con

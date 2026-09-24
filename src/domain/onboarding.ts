@@ -12,7 +12,7 @@ import { EXERCISES, EXERCISE_BY_ID } from '../data/exercises';
 import { DEFAULT_WEEKDAYS } from './routineBuilder';
 
 /** Días de entrenamiento a la semana que admite el generador. */
-export type DaysPerWeek = 2 | 3 | 4;
+export type DaysPerWeek = 2 | 3 | 4 | 5;
 
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 
@@ -158,6 +158,21 @@ const DAY_TEMPLATES: Array<{ name: string; slots: Slot[] }> = [
 /** Grupos que la plantilla repite varias veces dentro de la misma sesión. */
 const REPEATED_MUSCLES: MuscleGroup[] = ['chest', 'back'];
 
+DAY_TEMPLATES.push({
+  name: 'DÍA E · Técnica y accesorios',
+  slots: [
+    { role: 'primary', patterns: ['horizontal-push'], muscle: 'chest' },
+    { role: 'primary', patterns: ['vertical-pull', 'horizontal-pull'], muscle: 'back' },
+    { role: 'secondary', patterns: ['hinge'], muscle: 'hamstrings' },
+    { role: 'secondary', patterns: ['lunge', 'squat'], muscle: 'quads' },
+    { role: 'accessory', patterns: ['isolation'], muscle: 'biceps', supersetGroup: 'E1' },
+    { role: 'accessory', patterns: ['isolation'], muscle: 'triceps', supersetGroup: 'E1' },
+    { role: 'accessory', patterns: ['isolation'], muscle: 'shoulders', optional: true },
+    { role: 'accessory', patterns: ['isolation'], muscle: 'calves', optional: true },
+    { role: 'accessory', patterns: ['isolation', 'carry'], muscle: 'core', optional: true },
+  ],
+});
+
 // ──────────────────────────── Selección ─────────────────────────────────────
 
 /**
@@ -225,7 +240,7 @@ function setsFor(slot: Slot, profile: GymProfile): number {
 
   // Los accesorios pueden quedarse en 2 series; el básico del día nunca baja
   // de 3 para que siga siendo el plato fuerte de la sesión.
-  const floor = slot.role === 'primary' ? 3 : 2;
+  const floor = profile.daysPerWeek === 5 ? (slot.role === 'primary' ? 2 : 1) : (slot.role === 'primary' ? 3 : 2);
   return Math.min(6, Math.max(floor, Math.round(sets)));
 }
 

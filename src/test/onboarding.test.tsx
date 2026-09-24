@@ -145,10 +145,11 @@ describe('cuestionario inicial', () => {
     render(<App initialState={createInitialState(START)} />);
     await goToStep(user, 3);
 
-    await user.click(screen.getByRole('button', { name: '4 días' }));
+    await user.click(screen.getByRole('button', { name: '5 días' }));
     await next(user);
 
     expect(screen.getByText(/DÍA D/)).toBeInTheDocument();
+    expect(screen.getByText(/DÍA E/)).toBeInTheDocument();
   });
 
   it('limita los días de la semana al número de sesiones elegidas', async () => {

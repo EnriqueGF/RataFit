@@ -13,6 +13,7 @@ import type { WorkoutSession } from '../domain/types';
 import { Empty, Panel, Stat } from './ui';
 import { VolumeBars } from './TodayScreen';
 import { useTicker } from '../hooks/useTicker';
+import { BodyProgress } from './BodyProgress';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -43,11 +44,13 @@ export function ProgressScreen() {
 
   if (history.length === 0) {
     return (
+      <><BodyProgress />
       <Empty glyph="📈" image="./mascot-celebrate.webp">
         Todavía no hay entrenamientos registrados.
         <br />
         Termina tu primera sesión y aquí aparecerán tus marcas y tu volumen.
       </Empty>
+      </>
     );
   }
 
@@ -55,6 +58,7 @@ export function ProgressScreen() {
 
   return (
     <>
+      <BodyProgress />
       <Panel title="Acumulado">
         <div className="stat-grid">
           <Stat value={totals.sessions} label="Sesiones" />

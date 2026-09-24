@@ -274,7 +274,7 @@ export function OnboardingScreen({ initialProfile, onFinish, onSkip }: Onboardin
           <>
             <div className="section-label">¿Cuántos días entrenas a la semana?</div>
             <div className="chip-row">
-              {([2, 3, 4] as DaysPerWeek[]).map((days) => (
+              {([2, 3, 4, 5] as DaysPerWeek[]).map((days) => (
                 <button
                   key={days}
                   type="button"
