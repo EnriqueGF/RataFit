@@ -1,3 +1,4 @@
+import { REST_SECONDS } from './trainingPolicy';
 import type {
   AdvancedTechnique,
   Exercise,
@@ -304,14 +305,14 @@ export function suggestProgression({
 export function warmupSets(exercise: Exercise, workingWeight: number | null): SetPrescription[] {
   if (!exercise.compound || workingWeight === null || workingWeight <= 0) return [];
   const increment = incrementFor(exercise);
-  const ramp = exercise.fatigueCost >= 4 ? [0.4, 0.6, 0.8] : [0.5, 0.75];
+  const ramp = [0.5, 0.75];
   return ramp.map((pct, index) => ({
     index,
     targetReps: [Math.max(3, 8 - index * 2), Math.max(3, 8 - index * 2)] as [number, number],
     targetRir: 5,
     suggestedWeight: roundToIncrement(workingWeight * pct, increment),
     technique: 'straight' as AdvancedTechnique,
-    restSeconds: 60,
+    restSeconds: REST_SECONDS,
     warmup: true,
   }));
 }
@@ -400,7 +401,7 @@ export function buildPrescriptions({
       targetRir: phase === 'deload' ? targetRir + 1 : targetRir,
       suggestedWeight: weight,
       technique,
-      restSeconds: routineExercise.restSeconds,
+      restSeconds: REST_SECONDS,
       warmup: false,
     });
   }

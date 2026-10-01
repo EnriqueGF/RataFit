@@ -1,3 +1,5 @@
+import { buildPrescriptions } from '../domain/training';
+import { lastSetsFor } from '../state/store';
 import { useState } from 'react';
 import { useApp } from '../state/AppContext';
 import {
@@ -162,6 +164,11 @@ export function RoutineScreen() {
                     ? `${day.id}:${routineExercise.exerciseId}`
                     : `${day.id}:${routineExercise.exerciseId}:${index}`;
                 const open = expanded === key;
+                const preview = buildPrescriptions({
+                  exercise, routineExercise, mesocycle: state.mesocycle,
+                  history: lastSetsFor(state.history, exercise.id),
+                });
+                const weight = preview.sets.find((set) => !set.warmup)?.suggestedWeight;
 
                 return (
                   <li className="exercise" key={key}>
@@ -188,6 +195,10 @@ export function RoutineScreen() {
                       </button>
                     </div>
 
+                    <p className="muted">
+                      {weight != null ? `Peso sugerido: ${weight} kg · ` : ''}
+                      {preview.rationale} · Descanso: 2 minutos.
+                    </p>
                     {open && (
                       <div className="exercise__body">
                         <div className="grid-3" style={{ marginTop: 10 }}>
@@ -265,23 +276,7 @@ export function RoutineScreen() {
                               }
                             />
                           </Field>
-                          <Field label="Descanso (s)">
-                            <NumberInput
-                              value={routineExercise.restSeconds}
-                              min={15}
-                              max={600}
-                              step={15}
-                              label={`Descanso de ${exercise.name}`}
-                              onCommit={(restSeconds) =>
-                                dispatch({
-                                  type: 'routine/updateExercise',
-                                  dayId: day.id,
-                                  index,
-                                  patch: { restSeconds },
-                                })
-                              }
-                            />
-                          </Field>
+                          <Field label="Descanso"><span>2 minutos</span></Field>
                         </div>
 
                         <Field label="Técnica avanzada">

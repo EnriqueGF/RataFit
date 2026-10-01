@@ -1,3 +1,4 @@
+import { REST_SECONDS, MAX_WARMUP_SETS } from './trainingPolicy';
 import type {
   MuscleGroup,
   Routine,
@@ -91,7 +92,7 @@ export function createDefaultRoutine(now = Date.now()): Routine {
         technique: entry.technique,
         supersetGroup: entry.supersetGroup,
         targetReps: entry.targetReps ?? exercise?.repRange ?? [8, 12],
-        restSeconds: entry.restSeconds ?? exercise?.restSeconds ?? 120,
+        restSeconds: REST_SECONDS,
       } satisfies RoutineExercise;
     }),
   }));
@@ -134,11 +135,9 @@ export function estimateDayMinutes(day: RoutineDay): number {
   for (const routineExercise of day.exercises) {
     const exercise = EXERCISE_BY_ID[routineExercise.exerciseId];
     if (!exercise) continue;
-    const setSeconds = 35 + routineExercise.restSeconds;
+    const setSeconds = 35 + REST_SECONDS;
     seconds += routineExercise.sets * setSeconds;
-    if (exercise.compound) seconds += exercise.fatigueCost >= 4 ? 3 * 95 : 2 * 95;
-    // Las superseries ahorran aproximadamente un descanso por serie.
-    if (routineExercise.supersetGroup) seconds -= routineExercise.sets * routineExercise.restSeconds * 0.4;
+    if (exercise.compound) seconds += MAX_WARMUP_SETS * (35 + REST_SECONDS);
   }
   return Math.round(seconds / 60);
 }
@@ -171,6 +170,6 @@ export function defaultRoutineExercise(exerciseId: string): RoutineExercise {
     targetReps: exercise?.repRange ?? [8, 12],
     targetRir: exercise?.compound ? 2 : 1,
     technique: 'straight',
-    restSeconds: exercise?.restSeconds ?? 120,
+    restSeconds: REST_SECONDS,
   };
 }

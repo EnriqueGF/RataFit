@@ -126,9 +126,6 @@ function Shell() {
               style={{ width: `${rest.total > 0 ? (rest.remaining / rest.total) * 100 : 0}%` }}
             />
           </span>
-          <button type="button" className="btn btn--sm" onClick={() => rest.adjust(30)}>
-            +30s
-          </button>
           <button type="button" className="btn btn--sm" onClick={rest.stop}>
             ✕
           </button>

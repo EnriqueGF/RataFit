@@ -299,7 +299,7 @@ describe('edición de la rutina', () => {
     expect(exercise.sets).toBe(6);
     expect(exercise.targetReps).toEqual([4, 6]);
     expect(exercise.technique).toBe('cluster');
-    expect(exercise.restSeconds).toBe(240);
+    expect(exercise.restSeconds).toBe(120);
   });
 
   it('elimina un ejercicio por su índice', () => {
@@ -395,7 +395,7 @@ describe('mesociclo y ajustes', () => {
 
   it('reemplaza el estado completo al importar', () => {
     const other = createInitialState(1);
-    expect(reducer(initial(), { type: 'state/replace', state: other })).toBe(other);
+    expect(reducer(initial(), { type: 'state/replace', state: other })).toEqual(other);
   });
 });
 
@@ -403,7 +403,7 @@ describe('lastSetsFor', () => {
   it('devuelve las series de la sesión más reciente con ese ejercicio', () => {
     const history = [
       { exercises: [{ exerciseId: 'bench-press', loggedSets: [] }] },
-      { exercises: [{ exerciseId: 'bench-press', loggedSets: [{ id: 'x' }] }] },
+      { exercises: [{ exerciseId: 'bench-press', loggedSets: [{ id: 'x', weight: 100, reps: 8 }] }] },
     ] as unknown as WorkoutSession[];
     expect(lastSetsFor(history, 'bench-press')).toHaveLength(1);
     expect(lastSetsFor(history, 'otro')).toEqual([]);
@@ -522,5 +522,64 @@ describe('persistencia', () => {
       expect(loadState(broken, START)).toEqual(createInitialState(START));
       expect(() => saveState(broken, initial())).not.toThrow();
     });
+  });
+});
+
+
+describe('compatibilidad de la política de entrenamiento', () => {
+  function legacyState(completedWarmups: number) {
+    const state = run([
+      { type: 'session/start', dayId: 'day-1', now: START },
+      { type: 'session/logSet', exerciseId: 'bench-press', set: logged({ weight: 100, reps: 10 }) },
+      { type: 'session/finish', now: START + 1000 },
+      { type: 'session/start', dayId: 'day-1', now: START + 2000 },
+      { type: 'session/pause', now: START + 3000 },
+    ]);
+    state.settings.defaultRestSeconds = 60;
+    state.routine.days[0].exercises[0].restSeconds = 240;
+    const exercise = state.active!.exercises[0];
+    const warmup = exercise.prescriptions[0];
+    exercise.prescriptions = [
+      ...Array.from({ length: 3 }, (_, index) => ({ ...warmup, index, restSeconds: 60 })),
+      ...exercise.prescriptions.filter(set => !set.warmup),
+    ].map((set, index) => ({ ...set, index }));
+    exercise.loggedSets = Array.from({ length: completedWarmups }, (_, index) => ({
+      ...logged({ warmup: true }), id: `old-${index}`, completedAt: START + index,
+    }));
+    return state;
+  }
+
+  it.each([0, 1, 2, 3])('conserva %i calentamientos hechos al cargar local o remoto', (completed) => {
+    const legacy = legacyState(completed);
+    const snapshot = JSON.stringify(legacy);
+    const local = deserialize(serialize(legacy));
+    const remote = reducer(initial(), { type: 'state/replace', state: legacy });
+    for (const restored of [local, remote]) {
+      expect(restored.history).toEqual(legacy.history);
+      expect(restored.active!.exercises[0].loggedSets).toEqual(legacy.active!.exercises[0].loggedSets);
+      expect(restored.active!.accumulatedMs).toBe(legacy.active!.accumulatedMs);
+      expect(restored.routine.days[0].exercises[0].restSeconds).toBe(120);
+      expect(restored.settings.defaultRestSeconds).toBe(120);
+      const prescriptions = restored.active!.exercises[0].prescriptions;
+      expect(prescriptions.filter(set => set.warmup)).toHaveLength(Math.max(completed, 2));
+      expect(prescriptions.every(set => set.restSeconds === 120)).toBe(true);
+      expect(prescriptions.filter(set => !set.warmup)).toHaveLength(4);
+      expect(deserialize(serialize(restored))).toEqual(restored);
+    }
+    expect(JSON.stringify(legacy)).toBe(snapshot);
+  });
+
+  it('usa el trabajo más reciente aunque el historial esté desordenado y haya calentamientos posteriores', () => {
+    const base = legacyState(0).history[0];
+    const history = [
+      { ...base, finishedAt: START, exercises: [{ ...base.exercises[0], loggedSets: [{ ...base.exercises[0].loggedSets[0], weight: 50 }] }] },
+      { ...base, finishedAt: START + 4000, exercises: [{ ...base.exercises[0], loggedSets: [{ ...base.exercises[0].loggedSets[0], warmup: true }] }] },
+      base,
+    ];
+    const snapshot = JSON.stringify(history);
+    const loaded = deserialize(serialize({ ...initial(), history }));
+    const next = reducer(loaded, { type: 'session/start', dayId: 'day-1', now: START + 5000 });
+    expect(next.active!.exercises[0].prescriptions.find(set => !set.warmup)!.suggestedWeight).toBe(102.5);
+    expect(JSON.stringify(history)).toBe(snapshot);
   });
 });

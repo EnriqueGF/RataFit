@@ -375,10 +375,10 @@ describe('suggestProgression', () => {
 });
 
 describe('warmupSets', () => {
-  it('genera tres aproximaciones para los básicos más costosos', () => {
+  it('genera dos aproximaciones para los básicos más costosos', () => {
     const sets = warmupSets(bench, 100);
-    expect(sets).toHaveLength(3);
-    expect(sets.map((s) => s.suggestedWeight)).toEqual([40, 60, 80]);
+    expect(sets).toHaveLength(2);
+    expect(sets.map((s) => s.suggestedWeight)).toEqual([50, 75]);
     expect(sets.every((s) => s.warmup)).toBe(true);
   });
 
@@ -442,12 +442,13 @@ describe('buildPrescriptions', () => {
     });
     const warmups = sets.filter((s) => s.warmup);
     const working = sets.filter((s) => !s.warmup);
-    expect(warmups).toHaveLength(3);
+    expect(warmups).toHaveLength(2);
+    expect(sets.every((set) => set.restSeconds === 120)).toBe(true);
     expect(working).toHaveLength(4);
     expect(working[0].suggestedWeight).toBe(102.5);
     expect(working[1].suggestedWeight).toBe(92.5);
     expect(working[0].technique).toBe('top-backoff');
-    expect(sets.map((s) => s.index)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(sets.map((s) => s.index)).toEqual([0, 1, 2, 3, 4, 5]);
   });
 
   it('recorta el volumen y quita aproximaciones en descarga', () => {

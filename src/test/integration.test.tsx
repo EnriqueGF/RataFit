@@ -34,7 +34,7 @@ async function pickDay(user: ReturnType<typeof userEvent.setup>, label: string) 
 
 
 describe('cronómetro de descanso en la sesión', () => {
-  it('arranca solo al registrar una serie efectiva y se puede alargar o cerrar', async () => {
+  it('arranca solo al registrar una serie efectiva y se puede cerrar', async () => {
     const user = userEvent.setup();
     render(<App initialState={stateWith({ type: 'session/start', dayId: 'day-1', now: START })} />);
     await goTo(user, 'ENTRENO');
@@ -46,7 +46,8 @@ describe('cronómetro de descanso en la sesión', () => {
     const bar = screen.getByRole('status');
     expect(bar).toBeInTheDocument();
 
-    await user.click(within(bar).getByRole('button', { name: /\+30s/ }));
+    expect(bar).toHaveTextContent('2:00');
+    expect(within(bar).queryByRole('button', { name: /\+30s/ })).not.toBeInTheDocument();
     await user.click(within(bar).getByRole('button', { name: '✕' }));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
@@ -57,8 +58,8 @@ describe('cronómetro de descanso en la sesión', () => {
     await goTo(user, 'ENTRENO');
     await user.click(screen.getByRole('button', { name: /Press banca con barra/ }));
 
-    await user.click(screen.getByRole('button', { name: /Descanso 3:00/ }));
-    expect(screen.getByRole('status')).toHaveTextContent('3:00');
+    await user.click(screen.getByRole('button', { name: /Descanso 2:00/ }));
+    expect(screen.getByRole('status')).toHaveTextContent('2:00');
   });
 
   it('no arranca el descanso si el ajuste está desactivado', async () => {
@@ -99,6 +100,9 @@ describe('flujo completo de un entrenamiento', () => {
     await user.click(screen.getByRole('button', { name: /Terminar/ }));
     await user.click(screen.getByRole('button', { name: /Confirmar/ }));
 
+    await goTo(user, 'RUTINA');
+    expect(screen.getAllByText(/Peso sugerido: 102.5 kg/).length).toBeGreaterThan(0);
+
     // 2ª sesión del mismo día: la app propone más peso.
     await goTo(user, 'HOY');
     await pickDay(user, 'Día a');
@@ -106,13 +110,13 @@ describe('flujo completo de un entrenamiento', () => {
     await user.click(screen.getByRole('button', { name: /Press banca con barra/ }));
 
     // Ahora que conoce el peso de trabajo, la app antepone las aproximaciones:
-    // la primera es el 40 % de los 102,5 kg propuestos.
-    expect(screen.getByLabelText('Peso de la siguiente serie')).toHaveValue(40);
+    // la primera es el 50 % de los 102,5 kg propuestos.
+    expect(screen.getByLabelText('Peso de la siguiente serie')).toHaveValue(52.5);
     expect(screen.getByText(/aproximación/)).toBeInTheDocument();
 
-    // Al despachar las tres aproximaciones aparece la serie efectiva con la
+    // Al despachar las dos aproximaciones aparece la serie efectiva con la
     // carga progresada.
-    for (const expected of [40, 62.5, 82.5]) {
+    for (const expected of [52.5, 77.5]) {
       expect(screen.getByLabelText('Peso de la siguiente serie')).toHaveValue(expected);
       await user.click(screen.getByRole('button', { name: /OK/ }));
     }

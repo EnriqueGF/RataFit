@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import { type Action, type AppState, loadState, reducer, saveState } from './store';
+import { type Action, type AppState, loadState, normalizeTrainingState, reducer, saveState } from './store';
 
 interface AppContextValue {
   state: AppState;
@@ -24,7 +24,7 @@ export function AppProvider({
   /** Estado inicial explícito; en los tests evita depender de localStorage. */
   initialState?: AppState;
 }) {
-  const [state, dispatch] = useReducer(reducer, initialState, (given) => given ?? loadState(storage()));
+  const [state, dispatch] = useReducer(reducer, initialState, (given) => given ? normalizeTrainingState(given) : loadState(storage()));
 
   // Cada cambio se persiste: si el móvil mata la app a mitad de sesión, al
   // volver a abrirla el entrenamiento sigue donde estaba.

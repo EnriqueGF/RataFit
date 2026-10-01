@@ -1,3 +1,4 @@
+import { REST_SECONDS, MAX_WARMUP_SETS } from '../domain/trainingPolicy';
 import type {
   LoggedSet,
   MesocycleState,
@@ -18,7 +19,7 @@ import { isBodyMeasurement, normalizeMeasurements, type BodyMeasurement } from '
 export interface Settings {
   /** Unidad de peso; la app guarda siempre kg y convierte al mostrar. */
   unit: 'kg' | 'lb';
-  /** Segundos de descanso por defecto si el ejercicio no define otro. */
+  /** Descanso fijo entre series; se conserva el campo por compatibilidad. */
   defaultRestSeconds: number;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
@@ -44,7 +45,7 @@ export interface AppState {
 
 export const DEFAULT_SETTINGS: Settings = {
   unit: 'kg',
-  defaultRestSeconds: 120,
+  defaultRestSeconds: REST_SECONDS,
   soundEnabled: true,
   vibrationEnabled: true,
   autoStartRest: true,
@@ -293,7 +294,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'routine/updateExercise':
       return withDay(state, action.dayId, (d) => ({
         ...d,
-        exercises: d.exercises.map((e, i) => (i === action.index ? { ...e, ...action.patch } : e)),
+        exercises: d.exercises.map((e, i) => (i === action.index ? { ...e, ...action.patch, restSeconds: REST_SECONDS } : e)),
       }));
 
     case 'routine/moveExercise':
@@ -364,13 +365,10 @@ export function reducer(state: AppState, action: Action): AppState {
       };
 
     case 'settings/update':
-      return { ...state, settings: { ...state.settings, ...action.patch } };
+      return { ...state, settings: { ...state.settings, ...action.patch, defaultRestSeconds: REST_SECONDS } };
 
     case 'state/replace':
-      // Las cuentas existentes pueden devolver un estado anterior a las mediciones.
-      return action.state.bodyMeasurements === undefined
-        ? { ...action.state, bodyMeasurements: [] }
-        : action.state;
+      return normalizeTrainingState(action.state);
 
     default:
       return state;
@@ -441,9 +439,11 @@ function updateSessionExercise(
 
 /** Series registradas de un ejercicio en la sesión más reciente que lo incluyó. */
 export function lastSetsFor(history: WorkoutSession[], exerciseId: string): LoggedSet[] {
-  for (const session of history) {
+  const newestFirst = [...history].sort((a, b) =>
+    (b.finishedAt ?? b.startedAt ?? 0) - (a.finishedAt ?? a.startedAt ?? 0));
+  for (const session of newestFirst) {
     const found = session.exercises.find((e) => e.exerciseId === exerciseId);
-    if (found && found.loggedSets.length > 0) return found.loggedSets;
+    if (found && found.loggedSets.some((set) => !set.warmup && Number.isFinite(set.weight) && set.weight >= 0 && set.reps > 0)) return found.loggedSets;
   }
   return [];
 }
@@ -503,7 +503,7 @@ export function deserialize(raw: string | null, now = Date.now()): AppState {
     const initial = createInitialState(now);
     const { routine, history, active, mesocycle, settings } = parsed.state;
     if (!isValidRoutine(routine)) return initial;
-    return {
+    return normalizeTrainingState({
       routine,
       bodyMeasurements: normalizeMeasurements(parsed.state.bodyMeasurements),
       profile: parsed.state.profile ?? null,
@@ -512,7 +512,7 @@ export function deserialize(raw: string | null, now = Date.now()): AppState {
       active: restoreActiveSession(active, now),
       mesocycle: mesocycle ?? initial.mesocycle,
       settings: { ...DEFAULT_SETTINGS, ...(settings ?? {}) },
-    };
+    });
   } catch {
     return createInitialState(now);
   }
@@ -581,4 +581,33 @@ export function saveState(storage: Storage | undefined, state: AppState): void {
   } catch {
     // Cuota llena o modo privado: la app sigue funcionando en memoria.
   }
+}
+
+/** Adapta la planificación sin borrar series registradas ni sesiones archivadas. */
+export function normalizeTrainingState(state: AppState): AppState {
+  return {
+    ...state,
+    bodyMeasurements: state.bodyMeasurements ?? [],
+    settings: { ...state.settings, defaultRestSeconds: REST_SECONDS },
+    routine: {
+      ...state.routine,
+      days: state.routine.days.map(day => ({
+        ...day,
+        exercises: day.exercises.map(exercise => ({ ...exercise, restSeconds: REST_SECONDS })),
+      })),
+    },
+    active: state.active ? {
+      ...state.active,
+      exercises: state.active.exercises.map(exercise => {
+        let warmups = exercise.loggedSets.filter(set => set.warmup).length;
+        const prescriptions = (exercise.prescriptions ?? []).filter((set, index) => {
+          // Conserva el tramo ya hecho para mantener la posición al reanudar.
+          if (index < exercise.loggedSets.length || !set.warmup) return true;
+          warmups += 1;
+          return warmups <= MAX_WARMUP_SETS;
+        }).map((set, index) => ({ ...set, index, restSeconds: REST_SECONDS }));
+        return { ...exercise, prescriptions };
+      }),
+    } : null,
+  };
 }

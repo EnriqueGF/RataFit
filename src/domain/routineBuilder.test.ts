@@ -151,7 +151,7 @@ describe('createDefaultRoutine', () => {
     for (const day of routine.days) {
       const minutes = estimateDayMinutes(day);
       expect(minutes, day.name).toBeGreaterThan(40);
-      expect(minutes, day.name).toBeLessThan(110);
+      expect(minutes, day.name).toBeLessThan(120);
     }
   });
 });
@@ -205,13 +205,13 @@ describe('estimateDayMinutes', () => {
     expect(estimateDayMinutes(many)).toBeGreaterThan(estimateDayMinutes(one));
   });
 
-  it('descuenta tiempo cuando el ejercicio va en superserie', () => {
+  it('mantiene dos minutos de descanso también en superseries', () => {
     const solo = { ...createEmptyDay('a', 'A'), exercises: [defaultRoutineExercise('lateral-raise')] };
     const paired = {
       ...solo,
       exercises: [{ ...defaultRoutineExercise('lateral-raise'), supersetGroup: 'X' }],
     };
-    expect(estimateDayMinutes(paired)).toBeLessThan(estimateDayMinutes(solo));
+    expect(estimateDayMinutes(paired)).toBe(estimateDayMinutes(solo));
   });
 
   it('ignora ejercicios que no existen', () => {

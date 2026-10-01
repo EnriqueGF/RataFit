@@ -54,18 +54,7 @@ export function SettingsScreen({ auth }: { auth: AuthApi }) {
         </Field>
 
         <div className="grid-2" style={{ marginTop: 10 }}>
-          <Field label="Descanso por defecto (s)">
-            <NumberInput
-              value={settings.defaultRestSeconds}
-              min={15}
-              max={600}
-              step={15}
-              label="Descanso por defecto (s)"
-              onCommit={(defaultRestSeconds) =>
-                dispatch({ type: 'settings/update', patch: { defaultRestSeconds } })
-              }
-            />
-          </Field>
+          <Field label="Descanso"><span>2 minutos entre series</span></Field>
           <Field label="Peso corporal (kg)" htmlFor="bodyweight">
             <input
               id="bodyweight"

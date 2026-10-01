@@ -1,3 +1,4 @@
+import { REST_SECONDS } from '../domain/trainingPolicy';
 import { useMemo, useState } from 'react';
 import { useApp } from '../state/AppContext';
 import { EQUIPMENT_LABELS, MUSCLE_LABELS, TECHNIQUE_LABELS, getExercise } from '../data/exercises';
@@ -208,9 +209,8 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
                   unit={state.settings.unit}
                   onLog={(set) => {
                     dispatch({ type: 'session/logSet', exerciseId: exercise.id, set });
-                    if (state.settings.autoStartRest && !set.warmup) {
-                      const prescription = sessionExercise.prescriptions[sessionExercise.loggedSets.length];
-                      rest.start(prescription?.restSeconds ?? exercise.restSeconds);
+                    if (state.settings.autoStartRest) {
+                      rest.start(REST_SECONDS);
                     }
                   }}
                   onEdit={(setId, patch) =>
@@ -225,9 +225,9 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
                   <button
                     type="button"
                     className="btn btn--sm"
-                    onClick={() => rest.start(exercise.restSeconds)}
+                    onClick={() => rest.start(REST_SECONDS)}
                   >
-                    ⏱ Descanso {formatSeconds(exercise.restSeconds)}
+                    ⏱ Descanso {formatSeconds(REST_SECONDS)}
                   </button>
                   <button
                     type="button"
