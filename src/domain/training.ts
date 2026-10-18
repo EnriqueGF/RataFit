@@ -222,8 +222,8 @@ export interface ProgressionResult {
   suggestedWeight: number | null;
   /** Explicación breve mostrada al usuario. */
   rationale: string;
-  /** 'load' sube peso, 'reps' suma repeticiones, 'hold' repite, 'deload' baja. */
-  action: 'load' | 'reps' | 'hold' | 'deload';
+  /** 'load' sube peso, 'hold' repite, 'deload' baja. */
+  action: 'load' | 'hold' | 'deload';
 }
 
 /**
@@ -241,9 +241,9 @@ export function backoffWeight(exercise: Exercise, topWeight: number): number {
 }
 
 /**
- * Doble progresión con autorregulación por RIR: primero se llenan las
- * repeticiones del rango y solo entonces sube el peso. Si el RIR real quedó muy
- * por debajo del objetivo (se apuró de más), la carga baja.
+ * Progresión lineal con autorregulación por RIR: cada sesión en la que llegas
+ * al mínimo del rango en todas las series sin pasarte del RIR objetivo, la
+ * carga sube un salto. Si no llegas, se repite; si además apuraste de más, baja.
  */
 export function suggestProgression({
   exercise,
@@ -315,9 +315,14 @@ export function suggestProgression({
     };
   }
 
-  // Rango completado en todas las series: toca subir peso.
-  if (minReps >= highReps) {
-    const spare = avgRir >= targetRir + 1;
+  // Reps que habrías hecho dejando en reserva las del objetivo: las que salieron
+  // apurando más de lo pedido no cuentan para ganarse la subida.
+  const repsAtTargetRir = minReps - Math.max(0, targetRir - avgRir);
+
+  // Mínimo del rango cumplido en todas las series: toca subir peso, el doble
+  // si se completó el rango entero con RIR de sobra.
+  if (repsAtTargetRir >= lowReps) {
+    const spare = minReps >= highReps && avgRir >= targetRir + 1;
     const bump = spare ? increment * 2 : increment;
     // Se suma sobre el peso real sin reajustarlo a la rejilla del material: si
     // el gimnasio permite saltos más finos, redondear daba subidas distintas de
@@ -326,7 +331,7 @@ export function suggestProgression({
     if (harder === topWeight) {
       return {
         suggestedWeight: topWeight,
-        rationale: 'Rango completado sin asistencia: pasa a la versión sin asistir o con lastre.',
+        rationale: 'Llegaste al rango sin asistencia: pasa a la versión sin asistir o con lastre.',
         action: 'hold',
       };
     }
@@ -335,17 +340,18 @@ export function suggestProgression({
       suggestedWeight: harder,
       rationale: spare
         ? `Completaste el rango sobrado (RIR ${fmt(avgRir)}): ${change}.`
-        : `Rango completado: ${change} y vuelve a la parte baja del rango.`,
+        : `Llegaste al rango: ${change}.`,
       action: 'load',
     };
   }
 
-  // Dentro del rango: mantener peso y sumar repeticiones.
+  // Llegó al rango, pero solo apurando más de lo previsto: la subida sería
+  // demasiado pronto.
   if (minReps >= lowReps) {
     return {
       suggestedWeight: topWeight,
-      rationale: `Mantén ${load(topWeight)} y busca ${minReps + 1} reps en todas las series.`,
-      action: 'reps',
+      rationale: `Llegaste al rango más cerca del fallo de lo previsto (RIR ${fmt(avgRir)} frente a ${targetRir}): repite ${load(topWeight)} hasta que salga con margen.`,
+      action: 'hold',
     };
   }
 

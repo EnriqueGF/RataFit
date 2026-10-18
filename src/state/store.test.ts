@@ -444,6 +444,28 @@ describe('progresión entre sesiones', () => {
     expect(second.active!.exercises[0].progressionNote).toContain('sube 2.5 kg');
   });
 
+  it('sube el peso cada semana mientras se llegue al mínimo del rango', () => {
+    let state = initial();
+    const weights: number[] = [];
+    for (let week = 0; week < 4; week += 1) {
+      const t = START + week * 7 * 24 * 3600_000;
+      state = reducer(state, { type: 'session/start', dayId: 'day-1', now: t });
+      const top = state.active!.exercises[0].prescriptions.find((p) => !p.warmup)!;
+      const weight = top.suggestedWeight ?? 100;
+      weights.push(weight);
+      // Siempre en la parte baja del rango y con el RIR que pide la semana.
+      state = run(
+        [
+          { type: 'session/logSet', exerciseId: 'bench-press', set: logged({ reps: 6, weight, rir: top.targetRir }) },
+          { type: 'session/finish', now: t + 1_000 },
+          { type: 'mesocycle/advance', now: t + 2_000 },
+        ],
+        state,
+      );
+    }
+    expect(weights).toEqual([100, 102.5, 105, 107.5]);
+  });
+
   it('tras la descarga progresa sobre la última semana dura, no sobre la descarga', () => {
     const state = run([
       { type: 'mesocycle/set', week: 4 },

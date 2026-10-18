@@ -108,7 +108,7 @@ con pecho (21 series) y espalda (21,5) en la parte alta.
 ## Cómo calcula
 
 - **1RM estimado**: Epley ajustado por RIR, de modo que 8 reps a RIR 2 equivalen a 10 al fallo.
-- **Progresión**: doble progresión. Primero se llena el rango de repeticiones en todas las series y solo entonces sube el peso; si sobró RIR, sube el doble. El motivo de cada propuesta se muestra en el ejercicio. En los ejercicios asistidos progresar es quitar asistencia.
+- **Progresión**: lineal. Cada sesión en la que llegas al mínimo del rango en todas las series sin pasarte del RIR objetivo, el peso sube un salto de material; si completaste el rango entero con RIR de sobra, sube el doble. Si no llegas, se repite el peso. El motivo de cada propuesta se muestra en el ejercicio. En los ejercicios asistidos progresar es quitar asistencia.
 - **Autorregulación**: si acabas muy por debajo del RIR objetivo sin llegar al rango, la carga baja un 10 % (como mínimo un salto de material) en vez de insistir.
 - **Periodización**: mesociclo de 5 semanas (configurable) — acumulación → intensificación → descarga, con una fase de pico antes de la descarga a partir de 6 semanas. Cada fase ajusta el RIR objetivo y el número de series. En la descarga la carga no sube, y al volver la progresión parte de la última semana dura, no de la descarga.
 - **Series efectivas**: las aproximaciones no cuentan; por encima de RIR 4 una serie vale la mitad; las técnicas de intensificación suman estímulo extra.

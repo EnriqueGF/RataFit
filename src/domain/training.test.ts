@@ -291,16 +291,42 @@ describe('suggestProgression', () => {
     expect(result.suggestedWeight).toBe(105);
   });
 
-  it('mantiene el peso y pide una repetición más dentro del rango', () => {
+  it('sube la carga en cuanto llega al mínimo del rango', () => {
     const result = suggestProgression({
       exercise: bench,
-      lastSets: [set({ reps: 8, weight: 100, rir: 2 })],
+      lastSets: [set({ reps: 6, weight: 100, rir: 2 }), set({ id: 'b', reps: 8, weight: 100, rir: 2 })],
       targetReps,
       targetRir: 2,
     });
-    expect(result.action).toBe('reps');
+    expect(result.action).toBe('load');
+    expect(result.suggestedWeight).toBe(102.5);
+    expect(result.rationale).toBe('Llegaste al rango: sube 2.5 kg.');
+  });
+
+  it('no sube si llegó al rango solo apurando más de lo previsto', () => {
+    // 6 reps al fallo con RIR 2 de objetivo equivalen a 4 dejando el margen.
+    const result = suggestProgression({
+      exercise: bench,
+      lastSets: [set({ reps: 6, weight: 100, rir: 0 })],
+      targetReps,
+      targetRir: 2,
+    });
+    expect(result.action).toBe('hold');
     expect(result.suggestedWeight).toBe(100);
-    expect(result.rationale).toContain('9');
+    expect(result.rationale).toContain('más cerca del fallo');
+  });
+
+  it('descuenta el RIR que falte respecto a un objetivo más alto', () => {
+    // Al empezar mesociclo el objetivo pasa a RIR 3: 8 reps a RIR 1 son 6
+    // dejando ese margen, justo el mínimo del rango.
+    const result = suggestProgression({
+      exercise: bench,
+      lastSets: [set({ reps: 8, weight: 100, rir: 1 })],
+      targetReps,
+      targetRir: 3,
+    });
+    expect(result.action).toBe('load');
+    expect(result.suggestedWeight).toBe(102.5);
   });
 
   it('repite carga si aún no llega al mínimo del rango', () => {
@@ -358,13 +384,13 @@ describe('suggestProgression', () => {
       exercise: bench,
       lastSets: [
         set({ id: 'a', reps: 10, weight: 100, rir: 2 }),
-        set({ id: 'b', reps: 7, weight: 100, rir: 1 }),
+        set({ id: 'b', reps: 5, weight: 100, rir: 2 }),
         set({ id: 'c', reps: 15, weight: 60, rir: 3 }),
       ],
       targetReps,
       targetRir: 2,
     });
-    expect(result.action).toBe('reps');
+    expect(result.action).toBe('hold');
     expect(result.suggestedWeight).toBe(100);
   });
 
@@ -502,13 +528,13 @@ describe('suggestProgression', () => {
       const result = suggestProgression({
         exercise: assistedPullup,
         lastSets: [
-          set({ id: 'a', reps: 10, weight: 25, rir: 2 }),
+          set({ id: 'a', reps: 6, weight: 25, rir: 2 }),
           set({ id: 'b', reps: 14, weight: 50, rir: 2 }),
         ],
         targetReps: repRange,
         targetRir: 2,
       });
-      expect(result.action).toBe('reps');
+      expect(result.action).toBe('hold');
       expect(result.suggestedWeight).toBe(25);
     });
 
@@ -653,7 +679,7 @@ describe('buildPrescriptions', () => {
     const { sets } = buildPrescriptions({
       exercise: dbBench,
       routineExercise: { ...routineExercise, exerciseId: 'db-bench-press' },
-      history: [set({ reps: 8, weight: 10, rir: 2 })],
+      history: [set({ reps: 5, weight: 10, rir: 3 })],
       mesocycle: { startedAt: 0, week: 1, lengthWeeks: 5 },
     });
     const working = sets.filter((s) => !s.warmup);
