@@ -11,20 +11,28 @@ import type {
   WorkoutSession,
 } from '../domain/types';
 import { EXERCISE_BY_ID } from '../data/exercises';
-import { advanceMesocycle, buildPrescriptions, phaseForWeek } from '../domain/training';
+import {
+  advanceMesocycle,
+  buildPrescriptions,
+  phaseForWeek,
+  startOfDay,
+  syncMesocycle,
+} from '../domain/training';
 import { createDefaultRoutine, defaultRoutineExercise } from '../domain/routineBuilder';
 import { DEFAULT_PROFILE, buildRoutineFromProfile, type GymProfile } from '../domain/onboarding';
 import { isBodyMeasurement, normalizeMeasurements, type BodyMeasurement } from '../domain/bodyMeasurements';
 
+// La app trabaja solo en kg: la opción de libras cambiaba la etiqueta pero no
+// convertía los pesos de las series, así que se retiró.
 export interface Settings {
-  /** Unidad de peso; la app guarda siempre kg y convierte al mostrar. */
-  unit: 'kg' | 'lb';
   /** Descanso fijo entre series; se conserva el campo por compatibilidad. */
   defaultRestSeconds: number;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
   /** Arranca el cronómetro de descanso al registrar una serie. */
   autoStartRest: boolean;
+  /** Evita que la pantalla se apague mientras la sesión está en marcha. */
+  keepScreenOn: boolean;
   bodyweight: number | null;
 }
 
@@ -44,11 +52,11 @@ export interface AppState {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  unit: 'kg',
   defaultRestSeconds: REST_SECONDS,
   soundEnabled: true,
   vibrationEnabled: true,
   autoStartRest: true,
+  keepScreenOn: true,
   bodyweight: null,
 };
 
@@ -100,7 +108,8 @@ export type Action =
   | { type: 'profile/reopen' }
   // Mesociclo y ajustes
   | { type: 'mesocycle/advance'; now?: number }
-  | { type: 'mesocycle/set'; week: number; lengthWeeks?: number }
+  | { type: 'mesocycle/sync'; now?: number }
+  | { type: 'mesocycle/set'; week: number; lengthWeeks?: number; now?: number }
   | { type: 'settings/update'; patch: Partial<Settings> }
   | { type: 'state/replace'; state: AppState };
 
@@ -127,7 +136,13 @@ export function reducer(state: AppState, action: Action): AppState {
       if (previous && hasWork && !action.force) return state;
       const history =
         previous && hasWork ? [finishSession(previous, now), ...state.history] : state.history;
-      return { ...state, history, active: buildSession({ ...state, history }, day, now) };
+      // La semana avanza sola por calendario; la primera sesión fija desde
+      // cuándo se cuenta (los datos antiguos no lo tienen).
+      const synced = syncMesocycle(state.mesocycle, now);
+      const mesocycle =
+        synced.weekStartedAt === undefined ? { ...synced, weekStartedAt: startOfDay(now) } : synced;
+      const next = { ...state, history, mesocycle };
+      return { ...next, active: buildSession(next, day, now) };
     }
 
     case 'session/pause': {
@@ -342,18 +357,22 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'mesocycle/advance':
       return { ...state, mesocycle: advanceMesocycle(state.mesocycle, action.now ?? Date.now()) };
 
-    case 'mesocycle/set':
-      return {
-        ...state,
-        mesocycle: {
-          ...state.mesocycle,
-          lengthWeeks: Math.max(2, action.lengthWeeks ?? state.mesocycle.lengthWeeks),
-          week: Math.min(
-            Math.max(1, action.week),
-            Math.max(2, action.lengthWeeks ?? state.mesocycle.lengthWeeks),
-          ),
-        },
-      };
+    case 'mesocycle/sync': {
+      const mesocycle = syncMesocycle(state.mesocycle, action.now ?? Date.now());
+      return mesocycle === state.mesocycle ? state : { ...state, mesocycle };
+    }
+
+    case 'mesocycle/set': {
+      const lengthWeeks = Math.max(2, action.lengthWeeks ?? state.mesocycle.lengthWeeks);
+      const week = Math.min(Math.max(1, action.week), lengthWeeks);
+      // Elegir la semana a mano la hace empezar hoy; cambiar solo la duración
+      // no reinicia la cuenta de días.
+      const weekStartedAt =
+        week === state.mesocycle.week
+          ? state.mesocycle.weekStartedAt
+          : startOfDay(action.now ?? Date.now());
+      return { ...state, mesocycle: { ...state.mesocycle, lengthWeeks, week, weekStartedAt } };
+    }
 
     case 'settings/update':
       return { ...state, settings: { ...state.settings, ...action.patch, defaultRestSeconds: REST_SECONDS } };
@@ -451,13 +470,24 @@ export function lastSetsFor(
   return fallback;
 }
 
-function buildSessionExercise(state: AppState, routineExercise: RoutineExercise): SessionExercise {
+/**
+ * Series y motivo que la app propone hoy para un ejercicio de la rutina. Es
+ * lo mismo que se usa al empezar la sesión, para que RUTINA y ENTRENO nunca
+ * propongan pesos distintos.
+ */
+export function planExercise(
+  state: AppState,
+  routineExercise: RoutineExercise,
+): ReturnType<typeof buildPrescriptions> | null {
   const exercise = EXERCISE_BY_ID[routineExercise.exerciseId];
+  if (!exercise) return null;
   const skipDeload = phaseForWeek(state.mesocycle) !== 'deload';
   const history = lastSetsFor(state.history, routineExercise.exerciseId, skipDeload);
-  const plan = exercise
-    ? buildPrescriptions({ exercise, routineExercise, history, mesocycle: state.mesocycle })
-    : null;
+  return buildPrescriptions({ exercise, routineExercise, history, mesocycle: state.mesocycle });
+}
+
+function buildSessionExercise(state: AppState, routineExercise: RoutineExercise): SessionExercise {
+  const plan = planExercise(state, routineExercise);
   return {
     exerciseId: routineExercise.exerciseId,
     prescriptions: plan?.sets ?? [],

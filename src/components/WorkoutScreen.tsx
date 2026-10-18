@@ -9,7 +9,8 @@ import { Empty, Panel } from './ui';
 import { ExerciseMedia } from './ExerciseMedia';
 import { ExercisePicker } from './ExercisePicker';
 import { SetLogger } from './SetLogger';
-import type { SessionExercise } from '../domain/types';
+import { lastSetsFor } from '../state/store';
+import type { LoggedSet, SessionExercise } from '../domain/types';
 
 export function WorkoutScreen({ rest }: { rest: RestTimer }) {
   const { state, dispatch } = useApp();
@@ -26,6 +27,15 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
     () => (session ? session.exercises.reduce((sum, e) => sum + e.loggedSets.filter((s) => !s.warmup).length, 0) : 0),
     [session],
   );
+  // Lo que se hizo la última vez en cada ejercicio, a la vista entre series.
+  // Va memorizado porque la pantalla repinta cada segundo con el cronómetro.
+  const previousSets = useMemo(() => {
+    const byExercise: Record<string, LoggedSet[]> = {};
+    for (const { exerciseId } of session?.exercises ?? []) {
+      byExercise[exerciseId] = lastSetsFor(state.history, exerciseId).filter((s) => !s.warmup);
+    }
+    return byExercise;
+  }, [session?.exercises, state.history]);
 
   if (!session) {
     return (
@@ -202,6 +212,13 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
                   ))}
                 </ul>
 
+                {previousSets[exercise.id]?.length > 0 && (
+                  <p className="muted">
+                    Última vez ({formatDay(previousSets[exercise.id][0].completedAt)}):{' '}
+                    {previousSets[exercise.id].map((s) => `${s.weight}×${s.reps}@${s.rir}`).join(' · ')}
+                  </p>
+                )}
+
                 {sessionExercise.progressionNote && (
                   <div className="hint">{sessionExercise.progressionNote}</div>
                 )}
@@ -210,10 +227,10 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
                   exercise={exercise}
                   prescriptions={sessionExercise.prescriptions}
                   loggedSets={sessionExercise.loggedSets}
-                  unit={state.settings.unit}
                   onLog={(set) => {
                     dispatch({ type: 'session/logSet', exerciseId: exercise.id, set });
-                    if (state.settings.autoStartRest) {
+                    // Tras una aproximación se pasa a la siguiente sin esperar.
+                    if (state.settings.autoStartRest && !set.warmup) {
                       rest.start(REST_SECONDS);
                     }
                   }}
@@ -325,6 +342,10 @@ function isComplete(sessionExercise: SessionExercise): boolean {
   const target = sessionExercise.prescriptions.filter((p) => !p.warmup).length;
   const done = sessionExercise.loggedSets.filter((s) => !s.warmup).length;
   return target > 0 && done >= target;
+}
+
+function formatDay(time: number): string {
+  return new Date(time).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
 }
 
 export { TECHNIQUE_LABELS };

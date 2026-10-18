@@ -34,7 +34,7 @@ async function pickDay(user: ReturnType<typeof userEvent.setup>, label: string) 
 
 
 describe('cronómetro de descanso en la sesión', () => {
-  it('arranca solo al registrar una serie efectiva y se puede cerrar', async () => {
+  it('arranca solo al registrar una serie efectiva, se ajusta y se puede cerrar', async () => {
     const user = userEvent.setup();
     render(<App initialState={stateWith({ type: 'session/start', dayId: 'day-1', now: START })} />);
     await goTo(user, 'ENTRENO');
@@ -47,8 +47,12 @@ describe('cronómetro de descanso en la sesión', () => {
     expect(bar).toBeInTheDocument();
 
     expect(bar).toHaveTextContent('2:00');
-    expect(within(bar).queryByRole('button', { name: /\+30s/ })).not.toBeInTheDocument();
-    await user.click(within(bar).getByRole('button', { name: '✕' }));
+    await user.click(within(bar).getByRole('button', { name: 'Sumar 15 segundos' }));
+    expect(bar).toHaveTextContent('2:15');
+    await user.click(within(bar).getByRole('button', { name: 'Restar 15 segundos' }));
+    await user.click(within(bar).getByRole('button', { name: 'Restar 15 segundos' }));
+    expect(bar).toHaveTextContent('1:45');
+    await user.click(within(bar).getByRole('button', { name: 'Cerrar descanso' }));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
@@ -109,7 +113,8 @@ describe('flujo completo de un entrenamiento', () => {
     await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     await user.click(screen.getByRole('button', { name: /Press banca con barra/ }));
 
-    // Explica por qué propone esa carga.
+    // Recuerda lo que se hizo la última vez y explica por qué propone esa carga.
+    expect(screen.getByText(/Última vez .*100×10@3/)).toBeInTheDocument();
     expect(screen.getByText(/Llegaste al rango: sube 2.5 kg/)).toBeInTheDocument();
 
     // Ahora que conoce el peso de trabajo, la app antepone las aproximaciones:
@@ -125,6 +130,32 @@ describe('flujo completo de un entrenamiento', () => {
     }
     expect(screen.getByLabelText('Peso de la siguiente serie')).toHaveValue(102.5);
     expect(screen.queryByText(/aproximación/)).not.toBeInTheDocument();
+    // Tras las aproximaciones no se fuerza a esperar dos minutos.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('muestra la menor asistencia como marca de las dominadas asistidas', async () => {
+    const user = userEvent.setup();
+    const set = (weight: number, reps: number) => ({
+      type: 'session/logSet' as const,
+      exerciseId: 'assisted-pullup',
+      set: { weight, reps, rir: 2, technique: 'straight' as const, warmup: false },
+      now: START + 1,
+    });
+    render(
+      <App
+        initialState={stateWith(
+          { type: 'session/start', dayId: 'day-1', now: START },
+          { type: 'session/addExercise', exerciseId: 'assisted-pullup' },
+          set(30, 10),
+          set(20, 8),
+          { type: 'session/finish', now: START + 1000 },
+        )}
+      />,
+    );
+    await goTo(user, 'PROGRESO');
+    expect(screen.getByText(/Menor asistencia: 20 kg con 8 reps/)).toBeInTheDocument();
+    expect(screen.queryByText(/kg 1RM/)).not.toBeInTheDocument();
   });
 
   it('las series de la sesión anterior alimentan las marcas personales', async () => {

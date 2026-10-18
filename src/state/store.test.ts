@@ -377,7 +377,31 @@ describe('mesociclo y ajustes', () => {
 
     const atEnd = reducer(initial(), { type: 'mesocycle/set', week: 5 });
     const restarted = reducer(atEnd, { type: 'mesocycle/advance', now: START + 1 });
-    expect(restarted.mesocycle).toEqual({ startedAt: START + 1, week: 1, lengthWeeks: 5 });
+    expect(restarted.mesocycle).toMatchObject({ startedAt: START + 1, week: 1, lengthWeeks: 5 });
+  });
+
+  it('pasa de semana sola a los 7 días de la primera sesión', () => {
+    const DAY = 24 * 3600_000;
+    const first = reducer(initial(), { type: 'session/start', dayId: 'day-1', now: START });
+    expect(first.mesocycle.week).toBe(1);
+    expect(first.mesocycle.weekStartedAt).toBeDefined();
+
+    const sixDays = reducer({ ...first, active: null }, { type: 'session/start', dayId: 'day-1', now: START + 6 * DAY });
+    expect(sixDays.mesocycle.week).toBe(1);
+
+    const sevenDays = reducer(sixDays, { type: 'mesocycle/sync', now: START + 7 * DAY });
+    expect(sevenDays.mesocycle.week).toBe(2);
+    // Sin cambios no se crea un estado nuevo (evita guardar y sincronizar de más).
+    expect(reducer(sevenDays, { type: 'mesocycle/sync', now: START + 8 * DAY })).toBe(sevenDays);
+  });
+
+  it('elegir la semana a mano reinicia la cuenta de días, cambiar la duración no', () => {
+    const DAY = 24 * 3600_000;
+    const started = reducer(initial(), { type: 'session/start', dayId: 'day-1', now: START });
+    const moved = reducer(started, { type: 'mesocycle/set', week: 3, now: START + 5 * DAY });
+    expect(moved.mesocycle.weekStartedAt).toBeGreaterThan(started.mesocycle.weekStartedAt!);
+    const longer = reducer(moved, { type: 'mesocycle/set', week: 3, lengthWeeks: 6, now: START + 6 * DAY });
+    expect(longer.mesocycle.weekStartedAt).toBe(moved.mesocycle.weekStartedAt);
   });
 
   it('limita la semana al rango del mesociclo', () => {
@@ -387,8 +411,8 @@ describe('mesociclo y ajustes', () => {
   });
 
   it('actualiza los ajustes de forma parcial', () => {
-    const state = reducer(initial(), { type: 'settings/update', patch: { unit: 'lb', bodyweight: 78 } });
-    expect(state.settings.unit).toBe('lb');
+    const state = reducer(initial(), { type: 'settings/update', patch: { keepScreenOn: false, bodyweight: 78 } });
+    expect(state.settings.keepScreenOn).toBe(false);
     expect(state.settings.bodyweight).toBe(78);
     expect(state.settings.soundEnabled).toBe(DEFAULT_SETTINGS.soundEnabled);
   });
@@ -453,17 +477,18 @@ describe('progresión entre sesiones', () => {
       const top = state.active!.exercises[0].prescriptions.find((p) => !p.warmup)!;
       const weight = top.suggestedWeight ?? 100;
       weights.push(weight);
-      // Siempre en la parte baja del rango y con el RIR que pide la semana.
+      // Siempre en la parte baja del rango y con el RIR que pide la semana. La
+      // semana del mesociclo avanza sola con el calendario.
       state = run(
         [
           { type: 'session/logSet', exerciseId: 'bench-press', set: logged({ reps: 6, weight, rir: top.targetRir }) },
           { type: 'session/finish', now: t + 1_000 },
-          { type: 'mesocycle/advance', now: t + 2_000 },
         ],
         state,
       );
     }
     expect(weights).toEqual([100, 102.5, 105, 107.5]);
+    expect(state.mesocycle.week).toBe(4);
   });
 
   it('tras la descarga progresa sobre la última semana dura, no sobre la descarga', () => {
@@ -563,10 +588,11 @@ describe('persistencia', () => {
   it('completa los ajustes que falten en un guardado antiguo', () => {
     const stored = JSON.stringify({
       version: 1,
-      state: { routine: createInitialState(START).routine, settings: { unit: 'lb' } },
+      state: { routine: createInitialState(START).routine, settings: { soundEnabled: false } },
     });
     const state = deserialize(stored, START);
-    expect(state.settings.unit).toBe('lb');
+    expect(state.settings.soundEnabled).toBe(false);
+    expect(state.settings.keepScreenOn).toBe(true);
     expect(state.settings.autoStartRest).toBe(DEFAULT_SETTINGS.autoStartRest);
     expect(state.history).toEqual([]);
     expect(state.active).toBeNull();

@@ -172,4 +172,9 @@ export interface MesocycleState {
   week: number;
   /** Duración total en semanas, deload incluido. */
   lengthWeeks: number;
+  /**
+   * Medianoche del día en que empezó la semana actual. Sin él (datos antiguos)
+   * la semana no avanza sola hasta la siguiente sesión, que lo fija.
+   */
+  weekStartedAt?: number;
 }

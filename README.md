@@ -87,10 +87,10 @@ Se puede rehacer cuando quieras desde **AJUSTES → Mi gimnasio** (el histórico
 | Pestaña | Qué hace |
 |---|---|
 | **HOY** | Fase del mesociclo, elección del día a entrenar y volumen semanal planificado |
-| **ENTRENO** | Cronómetro con play/pausa, registro de series, GIFs, descanso, cambio de ejercicios |
+| **ENTRENO** | Cronómetro con play/pausa, registro de series con lo que hiciste la última vez, GIFs, descanso ajustable (±15 s), pantalla siempre encendida, cambio de ejercicios |
 | **RUTINA** | Edición completa: días, día de la semana, ejercicios, series, reps, RIR, técnica, descanso |
 | **PROGRESO** | Peso y grasa opcional con gráficas, acumulado, volumen de 7 días, récords, aviso de estancamiento e historial |
-| **AJUSTES** | Unidades, avisos, mesociclo, rehacer el cuestionario, exportar/importar copia y borrado |
+| **AJUSTES** | Avisos, pantalla encendida, mesociclo, rehacer el cuestionario, exportar/importar copia y borrado |
 
 ## La rutina por defecto
 
@@ -108,20 +108,19 @@ con pecho (21 series) y espalda (21,5) en la parte alta.
 ## Cómo calcula
 
 - **1RM estimado**: Epley ajustado por RIR, de modo que 8 reps a RIR 2 equivalen a 10 al fallo.
-- **Progresión**: lineal. Cada sesión en la que llegas al mínimo del rango en todas las series sin pasarte del RIR objetivo, el peso sube un salto de material; si completaste el rango entero con RIR de sobra, sube el doble. Si no llegas, se repite el peso. El motivo de cada propuesta se muestra en el ejercicio. En los ejercicios asistidos progresar es quitar asistencia.
+- **Progresión**: lineal. Cada sesión en la que llegas al mínimo del rango en todas las series sin pasarte del RIR objetivo, el peso sube un salto de material; si completaste el rango entero con RIR de sobra, sube el doble. Si no llegas, se repite el peso. En ejercicios de peso corporal sin lastre se suman repeticiones (y las dominadas o fondos pasan a lastre al completar el rango). El motivo de cada propuesta se muestra en el ejercicio. En los ejercicios asistidos progresar es quitar asistencia.
 - **Autorregulación**: si acabas muy por debajo del RIR objetivo sin llegar al rango, la carga baja un 10 % (como mínimo un salto de material) en vez de insistir.
-- **Periodización**: mesociclo de 5 semanas (configurable) — acumulación → intensificación → descarga, con una fase de pico antes de la descarga a partir de 6 semanas. Cada fase ajusta el RIR objetivo y el número de series. En la descarga la carga no sube, y al volver la progresión parte de la última semana dura, no de la descarga.
+- **Periodización**: mesociclo de 5 semanas (configurable) — acumulación → intensificación → descarga, con una fase de pico antes de la descarga a partir de 6 semanas. La semana avanza sola cada 7 días; tras un parón se retoma por la siguiente sin saltarse fases. Cada fase ajusta el RIR objetivo de cada ejercicio (mezclado con el suyo) y el número de series. En la descarga la carga no sube, y al volver la progresión parte de la última semana dura, no de la descarga.
 - **Series efectivas**: las aproximaciones no cuentan; por encima de RIR 4 una serie vale la mitad; las técnicas de intensificación suman estímulo extra.
 - **Técnicas avanzadas** (myo-reps, drop set, rest-pause, cluster, parciales en estiramiento, top set + back-off, superseries): se aplican solo a la última serie de los accesorios. Los básicos pesados van a series rectas por su ratio estímulo/fatiga, y en descarga se desactivan todas.
-- **Aproximaciones**: se generan solas para los compuestos (3 rampas si el coste es alto, 2 si no), escaladas al peso de trabajo.
+- **Aproximaciones**: se generan solas para los compuestos (dos rampas, al 50 % y al 75 % del peso de trabajo) y no disparan el descanso.
 - **Estancamiento**: tres sesiones seguidas sin mejorar el 1RM estimado disparan un aviso con opciones.
 
 ## Datos
 
 En **PROGRESO → Evolución corporal** puedes guardar tu peso por fecha y, si quieres,
 el porcentaje de grasa. Las gráficas muestran su evolución; el historial permite
-editar o eliminar mediciones. El peso respeta la unidad elegida en Ajustes y se
-guarda internamente en kg. Guardar una fecha existente actualiza esa medición.
+editar o eliminar mediciones. Todos los pesos de la app van en kg. Guardar una fecha existente actualiza esa medición.
 Las mediciones se incluyen en las copias de seguridad y en la sincronización.
 Las copias y cuentas anteriores siguen funcionando y conservan sus datos; el
 nuevo historial comienza vacío, sin inventar fechas para el peso de Ajustes.

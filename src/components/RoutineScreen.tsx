@@ -1,5 +1,4 @@
-import { buildPrescriptions } from '../domain/training';
-import { lastSetsFor } from '../state/store';
+import { planExercise } from '../state/store';
 import { useState } from 'react';
 import { useApp } from '../state/AppContext';
 import {
@@ -97,7 +96,7 @@ export function RoutineScreen() {
           <header className="panel__head">
             <input
               className="input"
-              style={{ minHeight: 32, padding: '4px 8px', fontSize: 12 }}
+              style={{ minHeight: 32, padding: '4px 8px' }}
               value={day.name}
               aria-label={`Nombre del día ${day.name}`}
               onChange={(event) =>
@@ -164,11 +163,8 @@ export function RoutineScreen() {
                     ? `${day.id}:${routineExercise.exerciseId}`
                     : `${day.id}:${routineExercise.exerciseId}:${index}`;
                 const open = expanded === key;
-                const preview = buildPrescriptions({
-                  exercise, routineExercise, mesocycle: state.mesocycle,
-                  history: lastSetsFor(state.history, exercise.id),
-                });
-                const weight = preview.sets.find((set) => !set.warmup)?.suggestedWeight;
+                const preview = planExercise(state, routineExercise);
+                const weight = preview?.sets.find((set) => !set.warmup)?.suggestedWeight;
 
                 return (
                   <li className="exercise" key={key}>
@@ -197,7 +193,7 @@ export function RoutineScreen() {
 
                     <p className="muted">
                       {weight != null ? `Peso sugerido: ${weight} kg · ` : ''}
-                      {preview.rationale} · Descanso: 2 minutos.
+                      {preview?.rationale} · Descanso: 2 minutos.
                     </p>
                     {open && (
                       <div className="exercise__body">

@@ -8,7 +8,6 @@ export interface SetLoggerProps {
   exercise: Exercise;
   prescriptions: SetPrescription[];
   loggedSets: LoggedSet[];
-  unit: 'kg' | 'lb';
   onLog: (set: Omit<LoggedSet, 'id' | 'completedAt'>) => void;
   onEdit: (setId: string, patch: Partial<LoggedSet>) => void;
   onDelete: (setId: string) => void;
@@ -22,7 +21,6 @@ export function SetLogger({
   exercise,
   prescriptions,
   loggedSets,
-  unit,
   onLog,
   onEdit,
   onDelete,
@@ -68,7 +66,7 @@ export function SetLogger({
         <thead>
           <tr>
             <th className="sets__index" scope="col">#</th>
-            <th scope="col">{unit === 'kg' ? 'KG' : 'LB'}</th>
+            <th scope="col">KG</th>
             <th scope="col">Reps</th>
             <th scope="col">RIR</th>
             <th scope="col">1RM</th>
@@ -194,15 +192,18 @@ export function SetLogger({
         <button
           type="button"
           className="btn btn--sm"
-          onClick={() =>
+          onClick={() => {
+            // Copia la serie anterior, RIR incluido: registrarla al fallo por
+            // defecto podía hacer que la app bajara el peso la próxima vez.
+            const last = loggedSets.at(-1);
             onLog({
-              weight: loggedSets.length > 0 ? loggedSets[loggedSets.length - 1].weight : 0,
-              reps: loggedSets.length > 0 ? loggedSets[loggedSets.length - 1].reps : 8,
-              rir: 0,
+              weight: last?.weight ?? 0,
+              reps: last?.reps ?? 8,
+              rir: last?.rir ?? 2,
               technique: 'straight',
               warmup: false,
-            })
-          }
+            });
+          }}
         >
           + Serie extra
         </button>

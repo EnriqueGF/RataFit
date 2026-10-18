@@ -32,6 +32,17 @@ export function AppProvider({
     saveState(storage(), state);
   }, [state]);
 
+  // La semana del mesociclo avanza por calendario: se comprueba al abrir y al
+  // volver a la app, que puede quedarse días abierta en segundo plano.
+  useEffect(() => {
+    const sync = () => {
+      if (document.visibilityState === 'visible') dispatch({ type: 'mesocycle/sync' });
+    };
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
+
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

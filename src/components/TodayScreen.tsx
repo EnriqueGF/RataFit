@@ -7,7 +7,7 @@ import {
   plannedWeeklyVolume,
   suggestNextDay,
 } from '../domain/routineBuilder';
-import { phaseForWeek, targetRirForWeek, volumeVerdict } from '../domain/training';
+import { exerciseTargetRir, phaseForWeek, targetRirForWeek, volumeVerdict } from '../domain/training';
 import type { MuscleGroup, RoutineDay } from '../domain/types';
 import { ExerciseMedia } from './ExerciseMedia';
 import { Empty, Panel } from './ui';
@@ -41,6 +41,15 @@ export function TodayScreen({ onStarted }: { onStarted: () => void }) {
     routine.days.find((d) => d.id === pickedId) ?? suggested ?? routine.days[0];
 
   const phase = phaseForWeek(mesocycle);
+  // Cada ejercicio mezcla su RIR con el de la fase: el panel enseña el rango
+  // real que se va a pedir hoy, no solo el de la fase.
+  const dayRirs = (selected?.exercises ?? []).map((e) => exerciseTargetRir(e.targetRir, mesocycle));
+  const dayRir =
+    dayRirs.length === 0
+      ? String(targetRirForWeek(mesocycle))
+      : Math.min(...dayRirs) === Math.max(...dayRirs)
+        ? String(dayRirs[0])
+        : `${Math.min(...dayRirs)}–${Math.max(...dayRirs)}`;
   const planned = useMemo(() => plannedWeeklyVolume(routine), [routine]);
   const today = new Date().getDay();
 
@@ -156,7 +165,8 @@ export function TodayScreen({ onStarted }: { onStarted: () => void }) {
                       <span className="exercise__name">{exercise.name}</span>
                       <span className="exercise__meta">
                         {routineExercise.sets}×{routineExercise.targetReps[0]}–
-                        {routineExercise.targetReps[1]} · RIR {routineExercise.targetRir}
+                        {routineExercise.targetReps[1]} · RIR{' '}
+                        {exerciseTargetRir(routineExercise.targetRir, mesocycle)}
                       </span>
                     </span>
                   </div>
@@ -207,8 +217,8 @@ export function TodayScreen({ onStarted }: { onStarted: () => void }) {
             <div className="stat__label">Fase</div>
           </div>
           <div className="stat">
-            <div className="stat__value">{targetRirForWeek(mesocycle)}</div>
-            <div className="stat__label">RIR objetivo</div>
+            <div className="stat__value">{dayRir}</div>
+            <div className="stat__label">RIR del día</div>
           </div>
           <div className="stat">
             <div className="stat__value">{history.length}</div>

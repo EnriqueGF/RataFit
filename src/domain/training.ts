@@ -189,8 +189,10 @@ export function volumeMultiplierForWeek(state: MesocycleState): number {
   switch (phaseForWeek(state)) {
     case 'accumulation':
       return 1;
+    // 1,2 y no menos: con 1,15 los ejercicios de 3 series (casi todos los
+    // accesorios) redondeaban a 3 y no ganaban volumen.
     case 'intensification':
-      return 1.15;
+      return 1.2;
     case 'peak':
       return 1.25;
     case 'deload':
@@ -200,10 +202,53 @@ export function volumeMultiplierForWeek(state: MesocycleState): number {
 
 /** Avanza una semana el mesociclo, reiniciándolo cuando termina la descarga. */
 export function advanceMesocycle(state: MesocycleState, now = Date.now()): MesocycleState {
+  const weekStartedAt = startOfDay(now);
   if (state.week >= state.lengthWeeks) {
-    return { startedAt: now, week: 1, lengthWeeks: state.lengthWeeks };
+    return { startedAt: now, week: 1, lengthWeeks: state.lengthWeeks, weekStartedAt };
   }
-  return { ...state, week: state.week + 1 };
+  return { ...state, week: state.week + 1, weekStartedAt };
+}
+
+/**
+ * Pasa de semana sola cuando han pasado 7 días desde que empezó la actual.
+ * Avanza como mucho una semana: tras un parón se retoma por la siguiente en
+ * vez de saltarse fases, y la nueva semana empieza ese día. Sin parón se
+ * mantiene el calendario (lunes a lunes aunque se entrene el martes).
+ */
+export function syncMesocycle(state: MesocycleState, now = Date.now()): MesocycleState {
+  if (state.weekStartedAt === undefined) return state;
+  const days = Math.round((startOfDay(now) - state.weekStartedAt) / DAY_MS);
+  if (days < 7) return state;
+  const next = advanceMesocycle(state, now);
+  return { ...next, weekStartedAt: days >= 14 ? startOfDay(now) : addDays(state.weekStartedAt, 7) };
+}
+
+/** RIR de la fase mezclado con el del ejercicio; es el que guía la progresión. */
+function blendedRir(routineRir: number, mesocycle: MesocycleState): number {
+  return Math.max(0, Math.round((routineRir + targetRirForWeek(mesocycle)) / 2));
+}
+
+/** RIR objetivo de un ejercicio esta semana, el que se le pide en cada serie. */
+export function exerciseTargetRir(routineRir: number, mesocycle: MesocycleState): number {
+  const rir = blendedRir(routineRir, mesocycle);
+  return phaseForWeek(mesocycle) === 'deload' ? rir + 1 : rir;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Medianoche local del día de `time`. */
+export function startOfDay(time: number): number {
+  const date = new Date(time);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+// Por calendario y no sumando milisegundos: un cambio de hora movería la
+// medianoche una hora.
+function addDays(time: number, days: number): number {
+  const date = new Date(time);
+  date.setDate(date.getDate() + days);
+  return startOfDay(date.getTime());
 }
 
 // ────────────────────────── Progresión de la carga ──────────────────────────
@@ -222,8 +267,8 @@ export interface ProgressionResult {
   suggestedWeight: number | null;
   /** Explicación breve mostrada al usuario. */
   rationale: string;
-  /** 'load' sube peso, 'hold' repite, 'deload' baja. */
-  action: 'load' | 'hold' | 'deload';
+  /** 'load' sube peso, 'reps' suma repeticiones (sin lastre), 'hold' repite, 'deload' baja. */
+  action: 'load' | 'reps' | 'hold' | 'deload';
 }
 
 /**
@@ -279,7 +324,8 @@ export function suggestProgression({
   const minReps = Math.min(...relevant.map((s) => s.reps));
   const avgRir = average(relevant.map((s) => s.rir));
   const [lowReps, highReps] = targetReps;
-  const load = (kg: number) => `${fmt(kg, 2)} kg${assisted ? ' de asistencia' : ''}`;
+  const load = (kg: number) =>
+    kg === 0 && !assisted ? 'sin lastre' : `${fmt(kg, 2)} kg${assisted ? ' de asistencia' : ''}`;
 
   // Se pasó de intensidad: apuró hasta el fallo (o más) y aun así no llegó al
   // rango. El umbral nunca baja de 0, porque con un objetivo de RIR 0 o 1 la
@@ -318,6 +364,25 @@ export function suggestProgression({
   // Reps que habrías hecho dejando en reserva las del objetivo: las que salieron
   // apurando más de lo pedido no cuentan para ganarse la subida.
   const repsAtTargetRir = minReps - Math.max(0, targetRir - avgRir);
+
+  // Sin lastre en un ejercicio de peso corporal se progresa en reps hasta el
+  // tope del rango: proponer 1,25 kg en una plancha no tiene sentido. Solo los
+  // multiarticulares (dominadas, fondos) pasan luego a llevar lastre.
+  const bodyweightOnly = exercise.equipment === 'bodyweight' && !assisted && topWeight === 0;
+  if (bodyweightOnly && repsAtTargetRir >= lowReps && minReps < highReps) {
+    return {
+      suggestedWeight: 0,
+      rationale: `Sin lastre: busca ${minReps + 1} reps en todas las series.`,
+      action: 'reps',
+    };
+  }
+  if (bodyweightOnly && repsAtTargetRir >= lowReps && !exercise.compound) {
+    return {
+      suggestedWeight: 0,
+      rationale: 'Rango completado sin lastre: pasa a una variante más difícil o añade carga.',
+      action: 'hold',
+    };
+  }
 
   // Mínimo del rango cumplido en todas las series: toca subir peso, el doble
   // si se completó el rango entero con RIR de sobra.
@@ -433,8 +498,7 @@ export function buildPrescriptions({
   mesocycle,
 }: PrescriptionContext): { sets: SetPrescription[]; rationale: string } {
   const phase = phaseForWeek(mesocycle);
-  const weekRir = targetRirForWeek(mesocycle);
-  const targetRir = Math.max(0, Math.round((routineExercise.targetRir + weekRir) / 2));
+  const targetRir = blendedRir(routineExercise.targetRir, mesocycle);
 
   const progression = suggestProgression({
     exercise,
@@ -466,7 +530,7 @@ export function buildPrescriptions({
     sets.push({
       index: warmups.length + i,
       targetReps: routineExercise.targetReps,
-      targetRir: phase === 'deload' ? targetRir + 1 : targetRir,
+      targetRir: exerciseTargetRir(routineExercise.targetRir, mesocycle),
       suggestedWeight: weight,
       technique,
       restSeconds: REST_SECONDS,

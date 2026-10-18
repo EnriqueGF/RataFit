@@ -3,6 +3,8 @@ import {
   advanceMesocycle,
   average,
   backoffWeight,
+  exerciseTargetRir,
+  syncMesocycle,
   buildPrescriptions,
   computePersonalRecords,
   effectiveSetValue,
@@ -248,7 +250,7 @@ describe('periodización', () => {
 
   it('reduce el volumen a la mitad en la descarga', () => {
     expect(volumeMultiplierForWeek(meso(1))).toBe(1);
-    expect(volumeMultiplierForWeek(meso(3))).toBeCloseTo(1.15);
+    expect(volumeMultiplierForWeek(meso(3))).toBeCloseTo(1.2);
     expect(volumeMultiplierForWeek(meso(9, 10))).toBeCloseTo(1.25);
     expect(volumeMultiplierForWeek(meso(5))).toBe(0.5);
   });
@@ -256,7 +258,66 @@ describe('periodización', () => {
   it('avanza semana a semana y reinicia tras la descarga', () => {
     expect(advanceMesocycle(meso(1)).week).toBe(2);
     const restarted = advanceMesocycle(meso(5), 999);
-    expect(restarted).toEqual({ startedAt: 999, week: 1, lengthWeeks: 5 });
+    expect(restarted).toMatchObject({ startedAt: 999, week: 1, lengthWeeks: 5 });
+  });
+
+  describe('syncMesocycle', () => {
+    const DAY = 24 * 3600_000;
+    // Lunes 21 de septiembre de 2026 a medianoche.
+    const monday = new Date(2026, 8, 21).getTime();
+    const at = (week: number, weekStartedAt?: number): MesocycleState => ({ ...meso(week), weekStartedAt });
+
+    it('no avanza sin saber cuándo empezó la semana', () => {
+      const state = at(2);
+      expect(syncMesocycle(state, monday + 30 * DAY)).toBe(state);
+    });
+
+    it('no avanza antes de 7 días', () => {
+      const state = at(2, monday);
+      expect(syncMesocycle(state, monday + 6 * DAY + 23 * 3600_000)).toBe(state);
+    });
+
+    it('avanza a los 7 días manteniendo el calendario', () => {
+      // Se entrena el martes, pero la semana nueva sigue contando desde el lunes.
+      const next = syncMesocycle(at(2, monday), monday + 8 * DAY + 10 * 3600_000);
+      expect(next.week).toBe(3);
+      expect(next.weekStartedAt).toBe(new Date(2026, 8, 28).getTime());
+    });
+
+    it('tras un parón avanza solo una semana y la nueva empieza ese día', () => {
+      const back = monday + 24 * DAY + 10 * 3600_000;
+      const next = syncMesocycle(at(2, monday), back);
+      expect(next.week).toBe(3);
+      expect(next.weekStartedAt).toBe(new Date(2026, 9, 15).getTime());
+    });
+
+    it('tras la descarga empieza un mesociclo nuevo', () => {
+      const next = syncMesocycle(at(5, monday), monday + 7 * DAY);
+      expect(next).toMatchObject({ week: 1, startedAt: monday + 7 * DAY });
+    });
+  });
+
+  it('pide a cada ejercicio su RIR mezclado con el de la fase, uno más en descarga', () => {
+    expect(exerciseTargetRir(0, meso(1))).toBe(2);
+    expect(exerciseTargetRir(2, meso(3))).toBe(2);
+    expect(exerciseTargetRir(2, meso(5))).toBe(4);
+  });
+
+  it('da una serie más a los ejercicios de 3 series en intensificación', () => {
+    const working = buildPrescriptions({
+      exercise: lateral,
+      routineExercise: {
+        exerciseId: 'lateral-raise',
+        sets: 3,
+        targetReps: [12, 20],
+        targetRir: 1,
+        technique: 'straight',
+        restSeconds: 120,
+      },
+      history: [],
+      mesocycle: meso(3),
+    }).sets.filter((s) => !s.warmup);
+    expect(working).toHaveLength(4);
   });
 });
 
@@ -496,6 +557,62 @@ describe('suggestProgression', () => {
     });
     expect(result.action).toBe('deload');
     expect(result.suggestedWeight).toBe(90);
+  });
+
+  describe('peso corporal sin lastre', () => {
+    const plank = EXERCISE_BY_ID['plank'];
+
+    it('progresa en repeticiones, no en kilos', () => {
+      const result = suggestProgression({
+        exercise: plank,
+        lastSets: [set({ reps: 40, weight: 0, rir: 2 })],
+        targetReps: [30, 60],
+        targetRir: 2,
+      });
+      expect(result.action).toBe('reps');
+      expect(result.suggestedWeight).toBe(0);
+      expect(result.rationale).toBe('Sin lastre: busca 41 reps en todas las series.');
+    });
+
+    it('al completar el rango de un aislamiento propone una variante más difícil', () => {
+      const result = suggestProgression({
+        exercise: plank,
+        lastSets: [set({ reps: 60, weight: 0, rir: 2 })],
+        targetReps: [30, 60],
+        targetRir: 2,
+      });
+      expect(result.action).toBe('hold');
+      expect(result.suggestedWeight).toBe(0);
+      expect(result.rationale).toContain('variante más difícil');
+    });
+
+    it('las dominadas suman reps hasta el tope y luego lastre', () => {
+      const midRange = suggestProgression({
+        exercise: pullup,
+        lastSets: [set({ reps: 6, weight: 0, rir: 2 })],
+        targetReps: [5, 10],
+        targetRir: 2,
+      });
+      expect(midRange.action).toBe('reps');
+      const top = suggestProgression({
+        exercise: pullup,
+        lastSets: [set({ reps: 10, weight: 0, rir: 2 })],
+        targetReps: [5, 10],
+        targetRir: 2,
+      });
+      expect(top.action).toBe('load');
+      expect(top.suggestedWeight).toBe(1.25);
+    });
+
+    it('habla de «sin lastre» en vez de «0 kg»', () => {
+      const result = suggestProgression({
+        exercise: pullup,
+        lastSets: [set({ reps: 3, weight: 0, rir: 3 })],
+        targetReps: [5, 10],
+        targetRir: 2,
+      });
+      expect(result.rationale).toBe('Repite sin lastre hasta alcanzar 5 reps en todas las series.');
+    });
   });
 
   describe('ejercicios asistidos', () => {

@@ -39,7 +39,6 @@ function setup(props: Partial<React.ComponentProps<typeof SetLogger>> = {}) {
       exercise={bench}
       prescriptions={[prescription()]}
       loggedSets={[]}
-      unit="kg"
       onLog={onLog}
       onEdit={onEdit}
       onDelete={onDelete}
@@ -178,16 +177,18 @@ describe('SetLogger', () => {
     expect(screen.queryByLabelText('Peso de la siguiente serie')).not.toBeInTheDocument();
   });
 
-  it('permite añadir una serie extra copiando la última', async () => {
+  it('permite añadir una serie extra copiando la última, RIR incluido', async () => {
+    // Registrarla al fallo (RIR 0) por defecto podía hacer que la app bajara
+    // el peso en la sesión siguiente sin que el usuario lo hubiera hecho así.
     const { user, onLog } = setup({
       prescriptions: [prescription()],
-      loggedSets: [loggedSet({ weight: 95, reps: 7 })],
+      loggedSets: [loggedSet({ weight: 95, reps: 7, rir: 3 })],
     });
     await user.click(screen.getByRole('button', { name: /Serie extra/ }));
     expect(onLog).toHaveBeenCalledWith({
       weight: 95,
       reps: 7,
-      rir: 0,
+      rir: 3,
       technique: 'straight',
       warmup: false,
     });
@@ -207,20 +208,9 @@ describe('SetLogger', () => {
     expect(screen.getByLabelText('Peso de la siguiente serie')).toHaveValue(87.5);
   });
 
-  it('muestra la unidad configurada en la cabecera', () => {
-    const { unmount } = render(
-      <SetLogger
-        exercise={bench}
-        prescriptions={[prescription()]}
-        loggedSets={[]}
-        unit="lb"
-        onLog={vi.fn()}
-        onEdit={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    );
-    expect(screen.getByRole('columnheader', { name: 'LB' })).toBeInTheDocument();
-    unmount();
+  it('muestra los pesos en kg', () => {
+    setup();
+    expect(screen.getByRole('columnheader', { name: 'KG' })).toBeInTheDocument();
   });
 
   it('marca el back-off con menos peso que la serie principal', () => {

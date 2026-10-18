@@ -31,15 +31,4 @@ describe('evolución corporal', () => {
     await user.click(screen.getByRole('button', { name: 'Eliminar medición 2026-09-02' }));
     expect(screen.getByText('Historial de mediciones (1)')).toBeInTheDocument();
   });
-
-  it('convierte libras a kg al guardar', async () => {
-    const user = userEvent.setup();
-    const state = createInitialState();
-    state.settings = { ...state.settings, unit: 'lb' };
-    render(<AppProvider initialState={state}><ProgressScreen /></AppProvider>);
-    await user.type(screen.getByLabelText('Peso corporal (lb)'), '220.46226218');
-    await user.click(screen.getByRole('button', { name: 'Guardar medición' }));
-    const saved = JSON.parse(localStorage.getItem('iron-terminal:v1')!);
-    expect(saved.state.bodyMeasurements[0].weight).toBeCloseTo(100);
-  });
 });

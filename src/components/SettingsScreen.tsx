@@ -39,21 +39,7 @@ export function SettingsScreen({ auth }: { auth: AuthApi }) {
       <AccountPanel auth={auth} sessionCount={state.history.length} />
 
       <Panel title="Entreno">
-        <Field label="Unidad de peso" htmlFor="unit">
-          <select
-            id="unit"
-            className="select"
-            value={settings.unit}
-            onChange={(event) =>
-              dispatch({ type: 'settings/update', patch: { unit: event.target.value as 'kg' | 'lb' } })
-            }
-          >
-            <option value="kg">Kilogramos</option>
-            <option value="lb">Libras</option>
-          </select>
-        </Field>
-
-        <div className="grid-2" style={{ marginTop: 10 }}>
+        <div className="grid-2">
           <Field label="Descanso"><span>2 minutos entre series</span></Field>
           <Field label="Peso corporal (kg)" htmlFor="bodyweight">
             <input
@@ -95,6 +81,11 @@ export function SettingsScreen({ auth }: { auth: AuthApi }) {
             active={settings.autoStartRest}
             onToggle={() => dispatch({ type: 'settings/update', patch: { autoStartRest: !settings.autoStartRest } })}
           />
+          <Toggle
+            label="Pantalla encendida al entrenar"
+            active={settings.keepScreenOn}
+            onToggle={() => dispatch({ type: 'settings/update', patch: { keepScreenOn: !settings.keepScreenOn } })}
+          />
         </div>
       </Panel>
 
@@ -122,8 +113,9 @@ export function SettingsScreen({ auth }: { auth: AuthApi }) {
           </Field>
         </div>
         <div className="hint">
-          La última semana siempre es de descarga: la mitad de series, sin técnicas de intensificación
-          y con un RIR más conservador.
+          La semana avanza sola cada 7 días desde que empezó; si paras más tiempo, se retoma por la
+          siguiente sin saltarse ninguna. La última semana siempre es de descarga: la mitad de series,
+          sin técnicas de intensificación y con un RIR más conservador.
         </div>
       </Panel>
 
@@ -211,12 +203,13 @@ export function SettingsScreen({ auth }: { auth: AuthApi }) {
             RIR 2 pesan lo mismo que 10 al fallo.
           </li>
           <li>
-            <strong>Progresión</strong>: doble progresión. Primero llenas el rango de repeticiones en
-            todas las series y solo entonces sube el peso.
+            <strong>Progresión</strong>: lineal. Cada sesión en la que llegas al mínimo del rango en
+            todas las series dejando el RIR objetivo, el peso sube un salto. Sin lastre en ejercicios
+            de peso corporal se suman repeticiones.
           </li>
           <li>
             <strong>Autorregulación</strong>: si acabas muy por debajo del RIR objetivo sin llegar al
-            rango, la carga baja un 10 % en lugar de insistir.
+            rango, la carga baja un 10 % (al menos un salto de material) en lugar de insistir.
           </li>
           <li>
             <strong>Series efectivas</strong>: las aproximaciones no cuentan y por encima de RIR 4 una

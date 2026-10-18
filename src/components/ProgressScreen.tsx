@@ -27,7 +27,13 @@ export function ProgressScreen() {
   const now = useTicker(true, 60_000);
   const lastWeek = useMemo(() => history.filter((s) => now - s.startedAt <= WEEK_MS), [history, now]);
   const weeklyVolume = useMemo(() => volumeByMuscle(lastWeek, getExercise), [lastWeek]);
-  const records = useMemo(() => computePersonalRecords(history), [history]);
+  // En las asistidas el peso es ayuda: un 1RM sobre esos kilos subiría al
+  // empeorar, así que su marca es la menor asistencia.
+  const records = useMemo(
+    () => Object.values(computePersonalRecords(history)).filter((r) => !getExercise(r.exerciseId)?.assisted),
+    [history],
+  );
+  const assistedBests = useMemo(() => leastAssistanceRecords(history), [history]);
 
   const totals = useMemo(
     () => ({
@@ -54,11 +60,7 @@ export function ProgressScreen() {
     );
   }
 
-  // En las asistidas el 1RM estimado baja justo cuando mejoras (menos ayuda),
-  // así que el aviso saltaría al progresar.
-  const stalled = Object.keys(records).filter(
-    (id) => !getExercise(id)?.assisted && isStalled(history, id),
-  );
+  const stalled = records.map((r) => r.exerciseId).filter((id) => isStalled(history, id));
 
   return (
     <>
@@ -98,7 +100,7 @@ export function ProgressScreen() {
 
       <Panel title="Récords personales">
         <ul className="list-reset">
-          {Object.values(records)
+          {[...records]
             .sort((a, b) => b.best1Rm - a.best1Rm)
             .map((record) => {
               const exercise = getExercise(record.exerciseId);
@@ -135,6 +137,19 @@ export function ProgressScreen() {
                 </li>
               );
             })}
+          {assistedBests.map((best) => (
+            <li key={best.exerciseId} className="panel" style={{ marginBottom: 8 }}>
+              <div className="panel__body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <strong style={{ fontSize: 13 }}>{getExercise(best.exerciseId)?.name ?? best.exerciseId}</strong>
+                  <span className="chip chip--accent">{best.weight} kg de ayuda</span>
+                </div>
+                <p className="muted" style={{ margin: '4px 0 0' }}>
+                  Menor asistencia: {best.weight} kg con {best.reps} reps. Cuanto menos, mejor.
+                </p>
+              </div>
+            </li>
+          ))}
         </ul>
       </Panel>
 
@@ -197,6 +212,24 @@ export function ProgressScreen() {
       </Panel>
     </>
   );
+}
+
+/** Marca de los ejercicios asistidos: la menor ayuda con la que se hizo una serie. */
+function leastAssistanceRecords(history: WorkoutSession[]): Array<{ exerciseId: string; weight: number; reps: number }> {
+  const best: Record<string, { exerciseId: string; weight: number; reps: number }> = {};
+  for (const session of history) {
+    for (const sessionExercise of session.exercises) {
+      if (!getExercise(sessionExercise.exerciseId)?.assisted) continue;
+      for (const set of sessionExercise.loggedSets) {
+        if (set.warmup || set.reps <= 0) continue;
+        const current = best[sessionExercise.exerciseId];
+        if (!current || set.weight < current.weight || (set.weight === current.weight && set.reps > current.reps)) {
+          best[sessionExercise.exerciseId] = { exerciseId: sessionExercise.exerciseId, weight: set.weight, reps: set.reps };
+        }
+      }
+    }
+  }
+  return Object.values(best);
 }
 
 /** Mejor 1RM estimado por sesión, de la más antigua a la más reciente. */

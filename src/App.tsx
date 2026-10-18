@@ -10,6 +10,7 @@ import { OnboardingScreen } from './components/OnboardingScreen';
 import { formatSeconds, useRestTimer } from './hooks/useRestTimer';
 import { elapsedMs, formatDuration, phaseForWeek } from './domain/training';
 import { useTicker } from './hooks/useTicker';
+import { useWakeLock } from './hooks/useWakeLock';
 import { useAuth } from './state/useAuth';
 
 export type Tab = 'today' | 'workout' | 'routine' | 'progress' | 'settings';
@@ -43,6 +44,7 @@ function Shell() {
 
   const sessionRunning = state.active?.status === 'running';
   const now = useTicker(sessionRunning);
+  useWakeLock(sessionRunning && state.settings.keepScreenOn);
 
   // El título del documento refleja el cronómetro: útil con la app en segundo
   // plano o instalada como PWA.
@@ -126,7 +128,13 @@ function Shell() {
               style={{ width: `${rest.total > 0 ? (rest.remaining / rest.total) * 100 : 0}%` }}
             />
           </span>
-          <button type="button" className="btn btn--sm" onClick={rest.stop}>
+          <button type="button" className="btn btn--sm" aria-label="Restar 15 segundos" onClick={() => rest.adjust(-15)}>
+            −15
+          </button>
+          <button type="button" className="btn btn--sm" aria-label="Sumar 15 segundos" onClick={() => rest.adjust(15)}>
+            +15
+          </button>
+          <button type="button" className="btn btn--sm" aria-label="Cerrar descanso" onClick={rest.stop}>
             ✕
           </button>
         </div>

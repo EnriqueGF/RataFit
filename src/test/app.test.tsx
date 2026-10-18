@@ -69,7 +69,7 @@ describe('estructura general', () => {
     expect(screen.getByLabelText('Nombre')).toHaveValue('FULLBODY 3D · PECHO + ESPALDA');
 
     await goTo(user, 'AJUSTES');
-    expect(screen.getByLabelText('Unidad de peso')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Pantalla encendida/ })).toBeInTheDocument();
   });
 
   it('indica la semana del mesociclo cuando no hay sesión activa', () => {
@@ -120,6 +120,14 @@ describe('pantalla HOY', () => {
     // Al avanzar desde la descarga se reinicia el mesociclo.
     await user.click(screen.getByRole('button', { name: /Avanzar de semana/ }));
     expect(screen.getAllByText(/Semana 1\/5/).length).toBeGreaterThan(0);
+  });
+
+  it('enseña el RIR que se pedirá hoy, no solo el de la fase', () => {
+    renderApp();
+    const meso = screen.getByRole('heading', { name: 'Mesociclo' }).closest('.panel') as HTMLElement;
+    // Semana 1 (RIR 3 de fase) mezclado con el RIR de cada ejercicio del día A.
+    expect(within(meso).getByText('RIR del día')).toBeInTheDocument();
+    expect(within(meso).getByText('2–3')).toBeInTheDocument();
   });
 
   it('muestra el volumen semanal planificado con pecho y espalda destacados', () => {
@@ -583,12 +591,9 @@ describe('pantalla de progreso', () => {
 });
 
 describe('ajustes', () => {
-  it('cambia unidad, peso corporal y avisos', async () => {
+  it('cambia peso corporal y avisos', async () => {
     const { user } = renderApp();
     await goTo(user, 'AJUSTES');
-
-    await user.selectOptions(screen.getByLabelText('Unidad de peso'), 'lb');
-    expect(screen.getByLabelText('Unidad de peso')).toHaveValue('lb');
 
     const bodyweight = screen.getByLabelText('Peso corporal (kg)');
     await user.type(bodyweight, '78');
@@ -661,7 +666,7 @@ describe('ajustes', () => {
     const { user } = renderApp();
     await goTo(user, 'AJUSTES');
     expect(screen.getByText(/fórmula de Epley/)).toBeInTheDocument();
-    expect(screen.getByText(/doble progresión/i)).toBeInTheDocument();
+    expect(screen.getByText(/lineal/i)).toBeInTheDocument();
   });
 });
 

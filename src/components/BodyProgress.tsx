@@ -10,14 +10,13 @@ export function BodyProgress() {
   const [weight, setWeight] = useState('');
   const [fat, setFat] = useState('');
   const [message, setMessage] = useState('');
-  const factor = settings.unit === 'lb' ? 2.2046226218 : 1;
   const format = (value: number) => value.toLocaleString('es-ES', { maximumFractionDigits: 1 });
   const latest = measurements.at(-1);
   const first = measurements[0];
   const fatMeasurements = measurements.filter(m => m.bodyFat !== undefined);
   const save = (event: FormEvent) => {
     event.preventDefault();
-    const measurement = { date, weight: Number(weight.replace(',', '.')) / factor,
+    const measurement = { date, weight: Number(weight.replace(',', '.')),
       ...(fat.trim() ? { bodyFat: Number(fat.replace(',', '.')) } : {}) };
     if (!isBodyMeasurement(measurement) || date > localDate()) {
       setMessage('Introduce una fecha válida, un peso positivo y, si lo indicas, una grasa entre 0 y 100 %.');
@@ -35,8 +34,8 @@ export function BodyProgress() {
         <input className="input" id="measurement-date" type="date" required max={localDate()} value={date} onChange={e => setDate(e.target.value)} />
       </Field>
       <div className="grid-2" style={{ marginTop: 10 }}>
-        <Field label={`Peso corporal (${settings.unit})`} htmlFor="measurement-weight">
-          <input className="input" id="measurement-weight" inputMode="decimal" required value={weight} placeholder={settings.bodyweight ? format(settings.bodyweight * factor) : '—'} onChange={e => setWeight(e.target.value)} />
+        <Field label="Peso corporal (kg)" htmlFor="measurement-weight">
+          <input className="input" id="measurement-weight" inputMode="decimal" required value={weight} placeholder={settings.bodyweight ? format(settings.bodyweight) : '—'} onChange={e => setWeight(e.target.value)} />
         </Field>
         <Field label="Grasa corporal (%) · opcional" htmlFor="measurement-fat">
           <input className="input" id="measurement-fat" inputMode="decimal" value={fat} placeholder="—" onChange={e => setFat(e.target.value)} />
@@ -47,9 +46,9 @@ export function BodyProgress() {
       {message && <p role="status">{message}</p>}
     </form>
     {!latest ? <p className="muted">Registra tu primera medición para ver tu evolución.</p> : <>
-      <p>Último peso: <strong>{format(latest.weight * factor)} {settings.unit}</strong> · {latest.date}</p>
-      {measurements.length > 1 && <p className="muted">Cambio desde {first.date}: {format((latest.weight - first.weight) * factor)} {settings.unit}</p>}
-      <Trend label={`Peso (${settings.unit})`} points={measurements.map(m => ({ date: m.date, value: m.weight * factor }))} />
+      <p>Último peso: <strong>{format(latest.weight)} kg</strong> · {latest.date}</p>
+      {measurements.length > 1 && <p className="muted">Cambio desde {first.date}: {format(latest.weight - first.weight)} kg</p>}
+      <Trend label="Peso (kg)" points={measurements.map(m => ({ date: m.date, value: m.weight }))} />
       {fatMeasurements.length > 0 && <>
         <p>Última grasa: <strong>{format(fatMeasurements.at(-1)!.bodyFat!)} %</strong> · {fatMeasurements.at(-1)!.date}</p>
         {fatMeasurements.length > 1 && <p className="muted">Cambio de grasa: {format(fatMeasurements.at(-1)!.bodyFat! - fatMeasurements[0].bodyFat!)} puntos porcentuales</p>}
@@ -59,10 +58,10 @@ export function BodyProgress() {
         <summary>Historial de mediciones ({measurements.length})</summary>
         <ul className="list-reset">
           {[...measurements].reverse().map(m => <li key={m.date} style={{ padding: '10px 0' }}>
-            <p>{m.date} · {format(m.weight * factor)} {settings.unit}{m.bodyFat !== undefined ? ` · ${format(m.bodyFat)} % grasa` : ''}</p>
+            <p>{m.date} · {format(m.weight)} kg{m.bodyFat !== undefined ? ` · ${format(m.bodyFat)} % grasa` : ''}</p>
             <div className="btn-row">
               <button className="btn btn--sm" onClick={() => {
-                setDate(m.date); setWeight(String(Number((m.weight * factor).toFixed(2)))); setFat(m.bodyFat === undefined ? '' : String(m.bodyFat)); setMessage('Edita los valores y guarda la medición.');
+                setDate(m.date); setWeight(String(Number(m.weight.toFixed(2)))); setFat(m.bodyFat === undefined ? '' : String(m.bodyFat)); setMessage('Edita los valores y guarda la medición.');
               }} aria-label={`Editar medición ${m.date}`}>Editar</button>
               <button className="btn btn--sm" onClick={() => dispatch({ type: 'body/delete', date: m.date })} aria-label={`Eliminar medición ${m.date}`}>Eliminar</button>
             </div>
