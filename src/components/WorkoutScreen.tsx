@@ -202,6 +202,10 @@ export function WorkoutScreen({ rest }: { rest: RestTimer }) {
                   ))}
                 </ul>
 
+                {sessionExercise.progressionNote && (
+                  <div className="hint">{sessionExercise.progressionNote}</div>
+                )}
+
                 <SetLogger
                   exercise={exercise}
                   prescriptions={sessionExercise.prescriptions}

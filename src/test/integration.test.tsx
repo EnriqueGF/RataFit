@@ -109,6 +109,9 @@ describe('flujo completo de un entrenamiento', () => {
     await user.click(screen.getByRole('button', { name: /Empezar entreno/ }));
     await user.click(screen.getByRole('button', { name: /Press banca con barra/ }));
 
+    // Explica por qué propone esa carga.
+    expect(screen.getByText(/Rango completado: sube 2.5 kg/)).toBeInTheDocument();
+
     // Ahora que conoce el peso de trabajo, la app antepone las aproximaciones:
     // la primera es el 50 % de los 102,5 kg propuestos.
     expect(screen.getByLabelText('Peso de la siguiente serie')).toHaveValue(52.5);

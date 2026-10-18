@@ -11,7 +11,7 @@ import type {
   WorkoutSession,
 } from '../domain/types';
 import { EXERCISE_BY_ID } from '../data/exercises';
-import { buildPrescriptions } from '../domain/training';
+import { advanceMesocycle, buildPrescriptions, phaseForWeek } from '../domain/training';
 import { createDefaultRoutine, defaultRoutineExercise } from '../domain/routineBuilder';
 import { DEFAULT_PROFILE, buildRoutineFromProfile, type GymProfile } from '../domain/onboarding';
 import { isBodyMeasurement, normalizeMeasurements, type BodyMeasurement } from '../domain/bodyMeasurements';
@@ -339,17 +339,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, profile: null };
 
     // ──────────────────────── Mesociclo y ajustes ─────────────────────────
-    case 'mesocycle/advance': {
-      const now = action.now ?? Date.now();
-      const { mesocycle } = state;
-      return {
-        ...state,
-        mesocycle:
-          mesocycle.week >= mesocycle.lengthWeeks
-            ? { startedAt: now, week: 1, lengthWeeks: mesocycle.lengthWeeks }
-            : { ...mesocycle, week: mesocycle.week + 1 },
-      };
-    }
+    case 'mesocycle/advance':
+      return { ...state, mesocycle: advanceMesocycle(state.mesocycle, action.now ?? Date.now()) };
 
     case 'mesocycle/set':
       return {
@@ -437,29 +428,43 @@ function updateSessionExercise(
   };
 }
 
-/** Series registradas de un ejercicio en la sesión más reciente que lo incluyó. */
-export function lastSetsFor(history: WorkoutSession[], exerciseId: string): LoggedSet[] {
+/**
+ * Series de la sesión más reciente con trabajo efectivo en el ejercicio: una
+ * sesión con solo aproximaciones haría creer a la app que es la primera vez.
+ * Con `skipDeload`, las sesiones de descarga solo se usan si no hay otras,
+ * porque se hacen lejos del fallo a propósito y no miden lo que das de sí.
+ */
+export function lastSetsFor(
+  history: WorkoutSession[],
+  exerciseId: string,
+  skipDeload = false,
+): LoggedSet[] {
   const newestFirst = [...history].sort((a, b) =>
     (b.finishedAt ?? b.startedAt ?? 0) - (a.finishedAt ?? a.startedAt ?? 0));
+  let fallback: LoggedSet[] = [];
   for (const session of newestFirst) {
     const found = session.exercises.find((e) => e.exerciseId === exerciseId);
-    if (found && found.loggedSets.some((set) => !set.warmup && Number.isFinite(set.weight) && set.weight >= 0 && set.reps > 0)) return found.loggedSets;
+    if (!found?.loggedSets.some((set) => !set.warmup && Number.isFinite(set.weight) && set.weight >= 0 && set.reps > 0)) continue;
+    if (!skipDeload || session.phase !== 'deload') return found.loggedSets;
+    if (fallback.length === 0) fallback = found.loggedSets;
   }
-  return [];
+  return fallback;
 }
 
 function buildSessionExercise(state: AppState, routineExercise: RoutineExercise): SessionExercise {
   const exercise = EXERCISE_BY_ID[routineExercise.exerciseId];
-  const history = lastSetsFor(state.history, routineExercise.exerciseId);
-  const prescriptions = exercise
-    ? buildPrescriptions({ exercise, routineExercise, history, mesocycle: state.mesocycle }).sets
-    : [];
+  const skipDeload = phaseForWeek(state.mesocycle) !== 'deload';
+  const history = lastSetsFor(state.history, routineExercise.exerciseId, skipDeload);
+  const plan = exercise
+    ? buildPrescriptions({ exercise, routineExercise, history, mesocycle: state.mesocycle })
+    : null;
   return {
     exerciseId: routineExercise.exerciseId,
-    prescriptions,
+    prescriptions: plan?.sets ?? [],
     loggedSets: [],
     supersetGroup: routineExercise.supersetGroup,
     skipped: false,
+    progressionNote: plan?.rationale,
   };
 }
 
@@ -476,6 +481,7 @@ function buildSession(state: AppState, day: RoutineDay, now: number): WorkoutSes
     resumedAt: now,
     exercises: day.exercises.map((re) => buildSessionExercise(state, re)),
     bodyweight: state.settings.bodyweight ?? undefined,
+    phase: phaseForWeek(state.mesocycle),
   };
 }
 

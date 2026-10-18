@@ -108,9 +108,9 @@ con pecho (21 series) y espalda (21,5) en la parte alta.
 ## Cómo calcula
 
 - **1RM estimado**: Epley ajustado por RIR, de modo que 8 reps a RIR 2 equivalen a 10 al fallo.
-- **Progresión**: doble progresión. Primero se llena el rango de repeticiones en todas las series y solo entonces sube el peso; si sobró RIR, sube el doble.
-- **Autorregulación**: si acabas muy por debajo del RIR objetivo sin llegar al rango, la carga baja un 10 % en vez de insistir.
-- **Periodización**: mesociclo de 5 semanas (configurable) — acumulación → intensificación → pico → descarga. Cada fase ajusta el RIR objetivo y el número de series.
+- **Progresión**: doble progresión. Primero se llena el rango de repeticiones en todas las series y solo entonces sube el peso; si sobró RIR, sube el doble. El motivo de cada propuesta se muestra en el ejercicio. En los ejercicios asistidos progresar es quitar asistencia.
+- **Autorregulación**: si acabas muy por debajo del RIR objetivo sin llegar al rango, la carga baja un 10 % (como mínimo un salto de material) en vez de insistir.
+- **Periodización**: mesociclo de 5 semanas (configurable) — acumulación → intensificación → descarga, con una fase de pico antes de la descarga a partir de 6 semanas. Cada fase ajusta el RIR objetivo y el número de series. En la descarga la carga no sube, y al volver la progresión parte de la última semana dura, no de la descarga.
 - **Series efectivas**: las aproximaciones no cuentan; por encima de RIR 4 una serie vale la mitad; las técnicas de intensificación suman estímulo extra.
 - **Técnicas avanzadas** (myo-reps, drop set, rest-pause, cluster, parciales en estiramiento, top set + back-off, superseries): se aplican solo a la última serie de los accesorios. Los básicos pesados van a series rectas por su ratio estímulo/fatiga, y en descarga se desactivan todas.
 - **Aproximaciones**: se generan solas para los compuestos (3 rampas si el coste es alto, 2 si no), escaladas al peso de trabajo.

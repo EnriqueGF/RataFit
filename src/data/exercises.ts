@@ -309,6 +309,7 @@ export const EXERCISES: Exercise[] = [
     cues: ['Usa la asistencia mínima que permita técnica limpia'],
     media: mediaFrames('assisted-pullup'),
     alternatives: ['lat-pulldown', 'weighted-pullup'],
+    assisted: true,
   },
   {
     id: 'barbell-row',

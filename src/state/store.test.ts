@@ -408,6 +408,27 @@ describe('lastSetsFor', () => {
     expect(lastSetsFor(history, 'bench-press')).toHaveLength(1);
     expect(lastSetsFor(history, 'otro')).toEqual([]);
   });
+
+  it('salta las sesiones con solo aproximaciones', () => {
+    // Calentar y dejar el ejercicio no puede hacer creer a la app que es la
+    // primera vez y borrar la progresión acumulada.
+    const history = [
+      { exercises: [{ exerciseId: 'bench-press', loggedSets: [{ id: 'w', warmup: true, weight: 40, reps: 8 }] }] },
+      { exercises: [{ exerciseId: 'bench-press', loggedSets: [{ id: 'x', warmup: false, weight: 100, reps: 8 }] }] },
+    ] as unknown as WorkoutSession[];
+    expect(lastSetsFor(history, 'bench-press').map((s) => s.id)).toEqual(['x']);
+  });
+
+  it('puede saltar las sesiones de descarga, pero las usa si no hay otras', () => {
+    const history = [
+      { phase: 'deload', exercises: [{ exerciseId: 'bench-press', loggedSets: [{ id: 'd', weight: 100, reps: 6 }] }] },
+      { phase: 'deload', exercises: [{ exerciseId: 'curl', loggedSets: [{ id: 'c', weight: 20, reps: 10 }] }] },
+      { phase: 'peak', exercises: [{ exerciseId: 'bench-press', loggedSets: [{ id: 'p', weight: 100, reps: 10 }] }] },
+    ] as unknown as WorkoutSession[];
+    expect(lastSetsFor(history, 'bench-press')[0].id).toBe('d');
+    expect(lastSetsFor(history, 'bench-press', true)[0].id).toBe('p');
+    expect(lastSetsFor(history, 'curl', true)[0].id).toBe('c');
+  });
 });
 
 describe('progresión entre sesiones', () => {
@@ -420,6 +441,40 @@ describe('progresión entre sesiones', () => {
     const second = reducer(afterFirst, { type: 'session/start', dayId: 'day-1', now: START + 2_000 });
     const working = second.active!.exercises[0].prescriptions.filter((p) => !p.warmup);
     expect(working[0].suggestedWeight).toBe(102.5);
+    expect(second.active!.exercises[0].progressionNote).toContain('sube 2.5 kg');
+  });
+
+  it('tras la descarga progresa sobre la última semana dura, no sobre la descarga', () => {
+    const state = run([
+      { type: 'mesocycle/set', week: 4 },
+      { type: 'session/start', dayId: 'day-1', now: START },
+      { type: 'session/logSet', exerciseId: 'bench-press', set: logged({ reps: 10, weight: 100, rir: 1 }) },
+      { type: 'session/finish', now: START + 1_000 },
+      { type: 'mesocycle/advance', now: START + 2_000 },
+      // Descarga: misma carga, lejos del fallo y sin buscar el tope del rango.
+      { type: 'session/start', dayId: 'day-1', now: START + 3_000 },
+      { type: 'session/logSet', exerciseId: 'bench-press', set: logged({ reps: 6, weight: 100, rir: 4 }) },
+      { type: 'session/finish', now: START + 4_000 },
+      { type: 'mesocycle/advance', now: START + 5_000 },
+      { type: 'session/start', dayId: 'day-1', now: START + 6_000 },
+    ]);
+    expect(state.history.map((s) => s.phase)).toEqual(['deload', 'intensification']);
+    const working = state.active!.exercises[0].prescriptions.filter((p) => !p.warmup);
+    expect(working[0].suggestedWeight).toBe(102.5);
+  });
+
+  it('durante la descarga no sube la carga', () => {
+    const state = run([
+      { type: 'mesocycle/set', week: 4 },
+      { type: 'session/start', dayId: 'day-1', now: START },
+      { type: 'session/logSet', exerciseId: 'bench-press', set: logged({ reps: 10, weight: 100, rir: 1 }) },
+      { type: 'session/finish', now: START + 1_000 },
+      { type: 'mesocycle/advance', now: START + 2_000 },
+      { type: 'session/start', dayId: 'day-1', now: START + 3_000 },
+    ]);
+    const working = state.active!.exercises[0].prescriptions.filter((p) => !p.warmup);
+    expect(working[0].suggestedWeight).toBe(100);
+    expect(state.active!.exercises[0].progressionNote).toContain('descarga');
   });
 });
 

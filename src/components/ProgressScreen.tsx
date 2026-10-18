@@ -54,7 +54,11 @@ export function ProgressScreen() {
     );
   }
 
-  const stalled = Object.keys(records).filter((id) => isStalled(history, id));
+  // En las asistidas el 1RM estimado baja justo cuando mejoras (menos ayuda),
+  // así que el aviso saltaría al progresar.
+  const stalled = Object.keys(records).filter(
+    (id) => !getExercise(id)?.assisted && isStalled(history, id),
+  );
 
   return (
     <>

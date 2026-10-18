@@ -214,6 +214,8 @@ export interface ProgressionInput {
   lastSets: LoggedSet[];
   targetReps: [number, number];
   targetRir: number;
+  /** Semana de descarga: se mantiene la carga en vez de subirla. */
+  deloadWeek?: boolean;
 }
 
 export interface ProgressionResult {
@@ -222,6 +224,20 @@ export interface ProgressionResult {
   rationale: string;
   /** 'load' sube peso, 'reps' suma repeticiones, 'hold' repite, 'deload' baja. */
   action: 'load' | 'reps' | 'hold' | 'deload';
+}
+
+/**
+ * Peso de las series de back-off: un 10 % más fáciles que el top set y, como
+ * mínimo, un salto de material, porque con cargas ligeras el 10 % redondeado
+ * devolvía el mismo peso. En las asistidas, más fácil es más asistencia.
+ */
+export function backoffWeight(exercise: Exercise, topWeight: number): number {
+  const increment = incrementFor(exercise);
+  if (exercise.assisted) {
+    return round(Math.max(roundToIncrement(topWeight * 1.1, increment), topWeight + increment), 2);
+  }
+  const lighter = Math.min(roundToIncrement(topWeight * 0.9, increment), topWeight - increment);
+  return lighter > 0 ? round(lighter, 2) : topWeight;
 }
 
 /**
@@ -234,6 +250,7 @@ export function suggestProgression({
   lastSets,
   targetReps,
   targetRir,
+  deloadWeek = false,
 }: ProgressionInput): ProgressionResult {
   const working = lastSets.filter((s) => !s.warmup);
   if (working.length === 0) {
@@ -245,14 +262,24 @@ export function suggestProgression({
   }
 
   const increment = incrementFor(exercise);
-  const topWeight = Math.max(...working.map((s) => s.weight));
-  // Las series de back-off son intencionadamente más ligeras (hasta un 10 %),
-  // así que cuentan como parte del trabajo: mirar solo la serie más pesada
-  // dejaría fuera casi todo el ejercicio en un esquema top set + back-off.
-  const relevant = working.filter((s) => s.weight >= topWeight * 0.88);
+  // En las asistidas el peso es ayuda: la serie más dura es la de menos kilos.
+  const assisted = exercise.assisted === true;
+  const weights = working.map((s) => s.weight);
+  const topWeight = assisted ? Math.min(...weights) : Math.max(...weights);
+  // Las series de back-off son intencionadamente más ligeras, así que cuentan
+  // como parte del trabajo: mirar solo la serie más pesada dejaría fuera casi
+  // todo el ejercicio en un esquema top set + back-off. El margen cubre tanto
+  // el 10 % como el salto mínimo de material que usa el back-off.
+  const backoff = backoffWeight(exercise, topWeight);
+  const relevant = working.filter((s) =>
+    assisted
+      ? s.weight <= Math.max(topWeight * 1.12, backoff)
+      : s.weight >= Math.min(topWeight * 0.88, backoff),
+  );
   const minReps = Math.min(...relevant.map((s) => s.reps));
   const avgRir = average(relevant.map((s) => s.rir));
   const [lowReps, highReps] = targetReps;
+  const load = (kg: number) => `${fmt(kg, 2)} kg${assisted ? ' de asistencia' : ''}`;
 
   // Se pasó de intensidad: apuró hasta el fallo (o más) y aun así no llegó al
   // rango. El umbral nunca baja de 0, porque con un objetivo de RIR 0 o 1 la
@@ -260,24 +287,55 @@ export function suggestProgression({
   // cuando conviene bajar la carga.
   const overreachingRir = Math.max(0, targetRir - 1.5);
   if (avgRir <= overreachingRir && minReps < lowReps) {
-    const suggested = roundToIncrement(topWeight * 0.9, increment);
+    // Al menos un salto de material: con cargas ligeras el 10 % redondeado
+    // se quedaba en el mismo peso y la bajada no bajaba nada.
+    const step = Math.max(increment, roundToIncrement(topWeight * 0.1, increment));
+    const easier = assisted ? round(topWeight + step, 2) : Math.max(0, round(topWeight - step, 2));
+    if (easier === topWeight) {
+      return {
+        suggestedWeight: topWeight,
+        rationale: `Te quedaste corto de reps y apurando demasiado (RIR ${fmt(avgRir)}) y no queda carga que quitar: usa una variante más fácil hasta llegar a ${lowReps} reps.`,
+        action: 'hold',
+      };
+    }
     return {
-      suggestedWeight: suggested,
-      rationale: `Te quedaste corto de reps y apurando demasiado (RIR ${fmt(avgRir)}). Baja un 10 % y reconstruye.`,
+      suggestedWeight: easier,
+      rationale: `Te quedaste corto de reps y apurando demasiado (RIR ${fmt(avgRir)}). ${assisted ? 'Añade' : 'Baja'} ${load(Math.abs(easier - topWeight))} y reconstruye.`,
       action: 'deload',
+    };
+  }
+
+  // La descarga no es semana de progresar: misma carga, menos series y más
+  // margen. La subida llega al volver a acumular.
+  if (deloadWeek) {
+    return {
+      suggestedWeight: topWeight,
+      rationale: `Semana de descarga: mantén ${load(topWeight)} con menos series y lejos del fallo.`,
+      action: 'hold',
     };
   }
 
   // Rango completado en todas las series: toca subir peso.
   if (minReps >= highReps) {
-    const bump = avgRir >= targetRir + 1 ? increment * 2 : increment;
-    const suggested = roundToIncrement(topWeight + bump, increment);
+    const spare = avgRir >= targetRir + 1;
+    const bump = spare ? increment * 2 : increment;
+    // Se suma sobre el peso real sin reajustarlo a la rejilla del material: si
+    // el gimnasio permite saltos más finos, redondear daba subidas distintas de
+    // las anunciadas (22,5 → 30 kg en una máquina «de 5 en 5»).
+    const harder = assisted ? Math.max(0, round(topWeight - bump, 2)) : round(topWeight + bump, 2);
+    if (harder === topWeight) {
+      return {
+        suggestedWeight: topWeight,
+        rationale: 'Rango completado sin asistencia: pasa a la versión sin asistir o con lastre.',
+        action: 'hold',
+      };
+    }
+    const change = assisted ? `quita ${load(topWeight - harder)}` : `sube ${fmt(bump, 2)} kg`;
     return {
-      suggestedWeight: suggested,
-      rationale:
-        avgRir >= targetRir + 1
-          ? `Completaste el rango sobrado (RIR ${fmt(avgRir)}): sube ${fmt(bump)} kg.`
-          : `Rango completado: sube ${fmt(bump)} kg y vuelve a la parte baja del rango.`,
+      suggestedWeight: harder,
+      rationale: spare
+        ? `Completaste el rango sobrado (RIR ${fmt(avgRir)}): ${change}.`
+        : `Rango completado: ${change} y vuelve a la parte baja del rango.`,
       action: 'load',
     };
   }
@@ -286,7 +344,7 @@ export function suggestProgression({
   if (minReps >= lowReps) {
     return {
       suggestedWeight: topWeight,
-      rationale: `Mantén ${fmt(topWeight)} kg y busca ${minReps + 1} reps en todas las series.`,
+      rationale: `Mantén ${load(topWeight)} y busca ${minReps + 1} reps en todas las series.`,
       action: 'reps',
     };
   }
@@ -294,7 +352,7 @@ export function suggestProgression({
   // Aún por debajo del rango pero con RIR razonable: repetir carga.
   return {
     suggestedWeight: topWeight,
-    rationale: `Repite ${fmt(topWeight)} kg hasta alcanzar ${lowReps} reps en todas las series.`,
+    rationale: `Repite ${load(topWeight)} hasta alcanzar ${lowReps} reps en todas las series.`,
     action: 'hold',
   };
 }
@@ -303,7 +361,10 @@ export function suggestProgression({
 
 /** Series de aproximación recomendadas según el coste del ejercicio. */
 export function warmupSets(exercise: Exercise, workingWeight: number | null): SetPrescription[] {
-  if (!exercise.compound || workingWeight === null || workingWeight <= 0) return [];
+  // En las asistidas un porcentaje del peso sería menos ayuda, es decir,
+  // aproximaciones más duras que las series de trabajo.
+  if (!exercise.compound || exercise.assisted) return [];
+  if (workingWeight === null || workingWeight <= 0) return [];
   const increment = incrementFor(exercise);
   const ramp = [0.5, 0.75];
   return ramp.map((pct, index) => ({
@@ -374,6 +435,7 @@ export function buildPrescriptions({
     lastSets: history,
     targetReps: routineExercise.targetReps,
     targetRir,
+    deloadWeek: phase === 'deload',
   });
 
   const multiplier = volumeMultiplierForWeek(mesocycle);
@@ -393,7 +455,7 @@ export function buildPrescriptions({
     // Top set más pesado y back-offs con un 10 % menos.
     let weight = progression.suggestedWeight;
     if (weight !== null && routineExercise.technique === 'top-backoff' && i > 0) {
-      weight = roundToIncrement(weight * 0.9, incrementFor(exercise));
+      weight = backoffWeight(exercise, weight);
     }
     sets.push({
       index: warmups.length + i,
@@ -421,8 +483,9 @@ export function average(values: number[]): number {
   return round(values.reduce((a, b) => a + b, 0) / values.length, 2);
 }
 
-function fmt(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+// Con un solo decimal, 1,25 kg se mostraba como «1.3 kg»: los pesos van con dos.
+function fmt(value: number, decimals = 1): string {
+  return String(round(value, decimals));
 }
 
 /** Duración activa de una sesión en ms, respetando las pausas. */

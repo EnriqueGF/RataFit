@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceMesocycle,
   average,
+  backoffWeight,
   buildPrescriptions,
   computePersonalRecords,
   effectiveSetValue,
@@ -31,6 +32,10 @@ const bench = EXERCISE_BY_ID['bench-press'];
 const lateral = EXERCISE_BY_ID['lateral-raise'];
 const pecDeck = EXERCISE_BY_ID['pec-deck'];
 const dbFly = EXERCISE_BY_ID['db-fly'];
+const dbBench = EXERCISE_BY_ID['db-bench-press'];
+const legExtension = EXERCISE_BY_ID['leg-extension'];
+const pullup = EXERCISE_BY_ID['weighted-pullup'];
+const assistedPullup = EXERCISE_BY_ID['assisted-pullup'];
 
 function set(overrides: Partial<LoggedSet> = {}): LoggedSet {
   return {
@@ -372,6 +377,172 @@ describe('suggestProgression', () => {
     });
     expect(result.suggestedWeight).toBe(102.5);
   });
+
+  it('baja al menos un salto de material con cargas ligeras', () => {
+    // El 10 % de 10 kg redondeado de 2 en 2 volvía a dar 10 kg: la app decía
+    // «baja un 10 %» y proponía el mismo peso.
+    const overreached = [set({ reps: 4, weight: 10, rir: 0 })];
+    const dumbbell = suggestProgression({ exercise: dbBench, lastSets: overreached, targetReps, targetRir: 2 });
+    expect(dumbbell.action).toBe('deload');
+    expect(dumbbell.suggestedWeight).toBe(8);
+    expect(dumbbell.rationale).toContain('Baja 2 kg');
+
+    const machine = suggestProgression({
+      exercise: legExtension,
+      lastSets: [set({ reps: 4, weight: 25, rir: 0 })],
+      targetReps,
+      targetRir: 2,
+    });
+    expect(machine.suggestedWeight).toBe(20);
+  });
+
+  it('sin carga que quitar propone una variante más fácil en vez de bajar', () => {
+    const result = suggestProgression({
+      exercise: pullup,
+      lastSets: [set({ reps: 3, weight: 0, rir: 0 })],
+      targetReps: [5, 10],
+      targetRir: 2,
+    });
+    expect(result.action).toBe('hold');
+    expect(result.suggestedWeight).toBe(0);
+    expect(result.rationale).toContain('variante más fácil');
+  });
+
+  it('cuenta el back-off aunque el salto de material lo aleje más del 10 %', () => {
+    // 16 kg → back-off de 14 kg (un 12,5 % menos): antes quedaba fuera y la
+    // app pedía más reps ignorando que el back-off se había hundido.
+    const result = suggestProgression({
+      exercise: dbBench,
+      lastSets: [
+        set({ id: 'top', reps: 8, weight: 16, rir: 1, technique: 'top-backoff' }),
+        set({ id: 'back', reps: 3, weight: 14, rir: 0 }),
+      ],
+      targetReps,
+      targetRir: 2,
+    });
+    expect(result.action).toBe('deload');
+  });
+
+  it('suma el salto sobre el peso real aunque no encaje en la rejilla del material', () => {
+    // Redondear 22,5 + 5 a múltiplos de 5 daba 30 kg: una subida de 7,5 kg
+    // anunciada como de 5.
+    const result = suggestProgression({
+      exercise: legExtension,
+      lastSets: [set({ reps: 10, weight: 22.5, rir: 2 })],
+      targetReps,
+      targetRir: 2,
+    });
+    expect(result.suggestedWeight).toBe(27.5);
+    expect(result.rationale).toContain('sube 5 kg');
+  });
+
+  it('muestra los saltos de 1,25 kg sin redondearlos', () => {
+    const result = suggestProgression({
+      exercise: pullup,
+      lastSets: [set({ reps: 10, weight: 0, rir: 2 })],
+      targetReps: [5, 10],
+      targetRir: 2,
+    });
+    expect(result.suggestedWeight).toBe(1.25);
+    expect(result.rationale).toContain('sube 1.25 kg');
+  });
+
+  it('no sube la carga en la semana de descarga', () => {
+    const result = suggestProgression({
+      exercise: bench,
+      lastSets: [set({ reps: 10, weight: 100, rir: 1 })],
+      targetReps,
+      targetRir: 3,
+      deloadWeek: true,
+    });
+    expect(result.action).toBe('hold');
+    expect(result.suggestedWeight).toBe(100);
+    expect(result.rationale).toContain('descarga');
+  });
+
+  it('en la descarga sigue bajando si se apuró de más sin llegar al rango', () => {
+    const result = suggestProgression({
+      exercise: bench,
+      lastSets: [set({ reps: 4, weight: 100, rir: 0 })],
+      targetReps,
+      targetRir: 3,
+      deloadWeek: true,
+    });
+    expect(result.action).toBe('deload');
+    expect(result.suggestedWeight).toBe(90);
+  });
+
+  describe('ejercicios asistidos', () => {
+    const repRange: [number, number] = [8, 14];
+
+    it('progresar es quitar asistencia', () => {
+      const result = suggestProgression({
+        exercise: assistedPullup,
+        lastSets: [set({ reps: 14, weight: 30, rir: 2 })],
+        targetReps: repRange,
+        targetRir: 2,
+      });
+      expect(result.action).toBe('load');
+      expect(result.suggestedWeight).toBe(25);
+      expect(result.rationale).toContain('quita 5 kg de asistencia');
+    });
+
+    it('apurar de más sin llegar al rango añade asistencia', () => {
+      const result = suggestProgression({
+        exercise: assistedPullup,
+        lastSets: [set({ reps: 5, weight: 30, rir: 0 })],
+        targetReps: repRange,
+        targetRir: 2,
+      });
+      expect(result.action).toBe('deload');
+      expect(result.suggestedWeight).toBe(35);
+    });
+
+    it('la serie más dura es la de menos asistencia', () => {
+      const result = suggestProgression({
+        exercise: assistedPullup,
+        lastSets: [
+          set({ id: 'a', reps: 10, weight: 25, rir: 2 }),
+          set({ id: 'b', reps: 14, weight: 50, rir: 2 }),
+        ],
+        targetReps: repRange,
+        targetRir: 2,
+      });
+      expect(result.action).toBe('reps');
+      expect(result.suggestedWeight).toBe(25);
+    });
+
+    it('sin asistencia ya no hay nada que quitar', () => {
+      const result = suggestProgression({
+        exercise: assistedPullup,
+        lastSets: [set({ reps: 14, weight: 0, rir: 2 })],
+        targetReps: repRange,
+        targetRir: 2,
+      });
+      expect(result.action).toBe('hold');
+      expect(result.suggestedWeight).toBe(0);
+    });
+  });
+});
+
+describe('backoffWeight', () => {
+  it('quita un 10 % redondeado al material', () => {
+    expect(backoffWeight(bench, 102.5)).toBe(92.5);
+  });
+
+  it('queda al menos un salto por debajo con cargas ligeras', () => {
+    expect(backoffWeight(dbBench, 10)).toBe(8);
+    expect(backoffWeight(legExtension, 25)).toBe(20);
+  });
+
+  it('no propone un back-off sin peso', () => {
+    expect(backoffWeight(dbBench, 2)).toBe(2);
+    expect(backoffWeight(pullup, 0)).toBe(0);
+  });
+
+  it('en las asistidas añade asistencia', () => {
+    expect(backoffWeight(assistedPullup, 30)).toBe(35);
+  });
 });
 
 describe('warmupSets', () => {
@@ -390,6 +561,10 @@ describe('warmupSets', () => {
 
   it('usa dos aproximaciones en compuestos de menor coste', () => {
     expect(warmupSets(EXERCISE_BY_ID['machine-chest-press'], 100)).toHaveLength(2);
+  });
+
+  it('no genera aproximaciones en los asistidos, que serían más duras que el trabajo', () => {
+    expect(warmupSets(assistedPullup, 30)).toHaveLength(0);
   });
 });
 
@@ -461,6 +636,28 @@ describe('buildPrescriptions', () => {
     expect(sets.filter((s) => s.warmup)).toHaveLength(0);
     expect(sets).toHaveLength(2);
     expect(sets.every((s) => s.technique === 'straight')).toBe(true);
+  });
+
+  it('mantiene la carga en descarga aunque la semana anterior completara el rango', () => {
+    const { sets, rationale } = buildPrescriptions({
+      exercise: bench,
+      routineExercise: { ...routineExercise, technique: 'straight' },
+      history: [set({ reps: 10, weight: 100, rir: 1 })],
+      mesocycle: { startedAt: 0, week: 5, lengthWeeks: 5 },
+    });
+    expect(sets.map((s) => s.suggestedWeight)).toEqual([100, 100]);
+    expect(rationale).toContain('descarga');
+  });
+
+  it('deja el back-off un salto por debajo con mancuernas ligeras', () => {
+    const { sets } = buildPrescriptions({
+      exercise: dbBench,
+      routineExercise: { ...routineExercise, exerciseId: 'db-bench-press' },
+      history: [set({ reps: 8, weight: 10, rir: 2 })],
+      mesocycle: { startedAt: 0, week: 1, lengthWeeks: 5 },
+    });
+    const working = sets.filter((s) => !s.warmup);
+    expect(working.map((s) => s.suggestedWeight)).toEqual([10, 8, 8, 8]);
   });
 
   it('sube el número de series en la fase de intensificación', () => {

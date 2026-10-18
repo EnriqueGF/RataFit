@@ -57,6 +57,8 @@ export interface Exercise {
   media: string[];
   /** Ejercicios intercambiables (mismo patrón/estímulo). */
   alternatives: string[];
+  /** true si el peso registrado es asistencia: progresar es quitar kilos. */
+  assisted?: boolean;
 }
 
 /** Técnicas avanzadas de intensificación. */
@@ -136,6 +138,8 @@ export interface SessionExercise {
   notes?: string;
   /** true cuando el usuario marca el ejercicio como terminado o saltado. */
   skipped: boolean;
+  /** Por qué se propone esta carga hoy (doble progresión). */
+  progressionNote?: string;
 }
 
 export type SessionStatus = 'idle' | 'running' | 'paused' | 'finished';
@@ -155,6 +159,8 @@ export interface WorkoutSession {
   exercises: SessionExercise[];
   bodyweight?: number;
   notes?: string;
+  /** Fase del mesociclo en la que se entrenó; las sesiones antiguas no la tienen. */
+  phase?: MesocyclePhase;
 }
 
 /** Fase del mesociclo. */
